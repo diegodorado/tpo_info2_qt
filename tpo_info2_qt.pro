@@ -6,13 +6,15 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     settingsdialog.cpp \
-    console.cpp
+    console.cpp \
+    audio_sender.cpp
 
 HEADERS += \
     mainwindow.h \
     settingsdialog.h \
     console.h \
-    wav.h
+    wav.h \
+    audio_sender.h
 
 FORMS += \
     mainwindow.ui \

@@ -44,60 +44,20 @@
 
 #include "mainwindow.h"
 
+#include "audio_sender.h"
 
-#include <QFileDialog>
-#include <QDebug>
-#include "wav.h"
 
 
 int main(int argc, char *argv[])
 {
-    //QApplication a(argc, argv);
+    QApplication a(argc, argv);
     //MainWindow w;
     //w.show();
-    //return a.exec();
-
-    QString fileName = "/home/diego/music/8bit.wav"; // QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
-    QFile file(fileName);
-
-    wav_hdr_t *wav_hdr = new wav_hdr_t();
-    if (file.open(QIODevice::ReadOnly)) {
-        qint64 bytes = file.read((char *) wav_hdr, sizeof(wav_hdr_t));
-        if (bytes == sizeof(wav_hdr_t)) {
-            qDebug() << "read was good";
-            qDebug() << "file.size() " << file.size();
-            qDebug() << "fileSize : " << wav_hdr->fileSize();
-            qDebug() << "dataSize : " << wav_hdr->dataSize();
-            qDebug() << "WAV_HDR_CHUNK_ID : " << WAV_HDR_CHUNK_ID;
-            qDebug() << "ChunkID : " << wav_hdr->ChunkID;
-            qDebug() << "validChunkID : " << wav_hdr->validChunkID();
-            qDebug() << "validFormat : " << wav_hdr->validFormat();
-            qDebug() << "validSubchunk1ID : " << wav_hdr->validSubchunk1ID();
-            qDebug() << "validSubchunk2ID : " << wav_hdr->validSubchunk2ID();
-            qDebug() << "isPCM : " << wav_hdr->isPCM();
-            qDebug() << "is8bit : " << wav_hdr->is8bit();
-            qDebug() << "isMono : " << wav_hdr->isMono();
-            qDebug() << "valid : " << wav_hdr->valid();
 
 
-
-            int i = 7;
-
-            // pointer to integer and back
-            unsigned int v1 = reinterpret_cast<unsigned int>(&i); // static_cast is an error
-            qDebug() << "The value of &i is 0x" << v1 << "\n";
-            int* p1 = reinterpret_cast<int*>(v1);
-            qDebug() <<  (p1 == &i);
-
-
-            // type aliasing through pointer
-            char* p2 = reinterpret_cast<char*>(&i);
-            if(p2[0] == '\x7')
-                qDebug() << "This system is little-endian\n";
-            else
-                qDebug() << "This system is big-endian\n";
-
-        }
-    }
+    AudioSender *as = new AudioSender();
+    as->test();
+    as->play();
+    return a.exec();
 
 }
