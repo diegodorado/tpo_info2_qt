@@ -56,8 +56,9 @@ int main(int argc, char *argv[])
 
 
     AudioSender *as = new AudioSender();
-    as->test();
-    as->play();
+    as->load();
+    //as->test();
+    //as->play();
     return a.exec();
 
 }
