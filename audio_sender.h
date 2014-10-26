@@ -21,14 +21,15 @@ class AudioSender : public QObject
     void initTimer();
     void initFile();
     QAudioFormat m_format;
-
-public:
-
     QFile m_file;
     QAudioOutput* m_audio;
-    AudioBuffer* m_buffer;
+    QByteArray m_buffer_data;
+    QBuffer* m_buffer;
     QTimer *m_timer;
 
+
+
+public:
 
     explicit AudioSender(QObject *parent = 0);
 

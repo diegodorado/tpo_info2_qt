@@ -14,29 +14,29 @@ AudioSender::AudioSender(QObject *parent) :
 }
 
 
+void AudioSender::initBuffer(){
+
+  m_buffer = new QBuffer(&m_buffer_data);
+  m_buffer->open(QIODevice::ReadWrite);
+}
+
 void AudioSender::initFile(){
   m_file.setFileName("/home/diego/music/8bit.wav");
   m_file.open(QIODevice::ReadOnly);
-
-}
-
-void AudioSender::initBuffer(){
-  m_buffer = new AudioBuffer();
-  connect(m_buffer, SIGNAL(readyRead()), this, SLOT(handleReadyRead()));
-  m_buffer->start();
 }
 
 void AudioSender::initAudio(){
   m_audio = new QAudioOutput(m_format, this);
+  m_audio->setBufferSize(4096);
   connect(m_audio, SIGNAL(stateChanged(QAudio::State)), this, SLOT(handleStateChanged(QAudio::State)));
-  m_audio->start(&m_file);
+  m_audio->start(m_buffer);
 
 }
 
 void AudioSender::initTimer(){
   m_timer = new QTimer();
   connect(m_timer, SIGNAL(timeout()), this, SLOT(handleTimerTimeout()));
-  m_timer->start(200);
+  m_timer->start(100);
 }
 
 
@@ -123,18 +123,20 @@ void AudioSender::play()
 
 void AudioSender::handleStateChanged(QAudio::State newState)
 {
+  qDebug() << "AudioSender::handleStateChanged: " << newState ;
+
   switch (newState) {
     case QAudio::IdleState:
+      m_buffer->seek(0);
       // Finished playing (no more data)
-      m_audio->stop();
-      m_file.close();
-      delete m_audio;
       break;
 
     case QAudio::StoppedState:
       // Stopped for other reasons
       if (m_audio->error() != QAudio::NoError) {
         // Error handling
+        qDebug() << "m_audio->error(): " << m_audio->error();
+
       }
       break;
 
@@ -147,21 +149,21 @@ void AudioSender::handleStateChanged(QAudio::State newState)
 void AudioSender::load(){
   initBuffer();
   initFile();
-  initAudio();
   initTimer();
+  initAudio();
 }
 
-void AudioSender::handleReadyRead(){
-  m_buffer->seek(0);
-  qDebug() << "audio buffer readyRead: " << m_buffer->size() ;
-  qDebug() << "some data: " << m_buffer->peek(8) ;
-  qDebug() << "audio buffer readyRead: " << m_buffer->size() ;
-
-
-}
 
 void AudioSender::handleTimerTimeout()
 {
-  m_buffer->write("qwerqwer",8);
+
+  int chunks = m_audio->bytesFree()/m_audio->periodSize();
+
+  //qDebug() << "bytesFree: " << m_audio->bytesFree() << "periodSize: " << m_audio->periodSize() ;
+  while (chunks-- && (m_file.bytesAvailable () >= m_audio->periodSize()) ){
+    qDebug() << m_file.bytesAvailable ();
+    m_buffer_data.append(m_file.read(m_audio->periodSize()));
+  }
+
 
 }
