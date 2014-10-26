@@ -49,6 +49,20 @@
 
 #include <QtSerialPort/QSerialPort>
 
+#include "audio_sender.h"
+#include "ui_mainwindow.h"
+#include "console.h"
+#include "settingsdialog.h"
+
+#include <QMessageBox>
+#include <QFileDialog>
+#include <QDebug>
+
+#include <QAudioFormat>
+#include <QAudioOutput>
+#include <QAudioDeviceInfo>
+#include <QBuffer>
+
 QT_BEGIN_NAMESPACE
 
 namespace Ui {
@@ -57,37 +71,53 @@ class MainWindow;
 
 QT_END_NAMESPACE
 
-class Console;
-class SettingsDialog;
+
 
 class MainWindow : public QMainWindow
 {
-    Q_OBJECT
+  Q_OBJECT
+
+
+
+
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
-    ~MainWindow();
+  explicit MainWindow(QWidget *parent = 0);
+  ~MainWindow();
 
 private slots:
-    void openSerialPort();
-    void closeSerialPort();
-    void about();
-    void writeData(const QByteArray &data);
-    void readData();
-    void selectFile();
+  void onBytesWritten(qint64 bytes);
+  void openSerialPort();
+  void closeSerialPort();
+  void about();
+  void writeData(const QByteArray &data);
+  void readData();
+  void selectFile();
+  void handleError(QSerialPort::SerialPortError error);
+  void on_pushButton_filePicker_clicked();
+  void on_pushButton_openPortA_clicked();
+  void on_pushButton_openPortB_clicked();
+  void handleStateChanged(QAudio::State newState);
 
-    void handleError(QSerialPort::SerialPortError error);
 
-    void on_pushButton_filePicker_clicked();
+  void on_pushButton_playWavLocally_clicked();
+
 
 private:
-    void initActionsConnections();
+  Ui::MainWindow *ui;
+  Console *console;
+  QFile m_file;
+  QAudioFormat m_format;
+  QAudioOutput* m_audio;
+  QByteArray m_buffer_data;
+  QBuffer* m_buffer;
+  SettingsDialog *settings;
+  QSerialPort *serial;
 
-private:
-    Ui::MainWindow *ui;
-    Console *console;
-    SettingsDialog *settings;
-    QSerialPort *serial;
+  void openSerialPort(SettingsDialog::Settings p);
+  void openSerialPort(QString port);
+  void initActionsConnections();
+
 };
 
 #endif // MAINWINDOW_H

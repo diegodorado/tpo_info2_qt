@@ -28,9 +28,30 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
+     <widget class="QPushButton" name="pushButton_openPortA">
+      <property name="text">
+       <string>OPEN PORT A</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="pushButton_openPortB">
+      <property name="text">
+       <string>OPEN PORT B</string>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QPushButton" name="pushButton_filePicker">
       <property name="text">
        <string>Select WAV File</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="pushButton_playWavLocally">
+      <property name="text">
+       <string>PLAY WAV LOCALLY</string>
       </property>
      </widget>
     </item>

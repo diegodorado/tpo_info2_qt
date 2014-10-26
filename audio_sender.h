@@ -10,8 +10,8 @@
 #include <QAudioDeviceInfo>
 #include <QFileDialog>
 #include <QTimer>
+#include <QBuffer>
 
-#include "audio_buffer.h"
 
 class AudioSender : public QObject
 {
@@ -41,7 +41,6 @@ signals:
 public slots:
 
     void handleStateChanged(QAudio::State newState);
-    void handleReadyRead();
     void handleTimerTimeout();
 };
 

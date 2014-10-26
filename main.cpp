@@ -44,21 +44,14 @@
 
 #include "mainwindow.h"
 
-#include "audio_sender.h"
 
 
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    //MainWindow w;
-    //w.show();
-
-
-    AudioSender *as = new AudioSender();
-    as->load();
-    //as->test();
-    //as->play();
+    MainWindow w;
+    w.show();
     return a.exec();
 
 }

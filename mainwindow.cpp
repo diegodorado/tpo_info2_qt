@@ -40,23 +40,7 @@
 **
 ****************************************************************************/
 
-#include "wav.h"
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
-#include "console.h"
-#include "settingsdialog.h"
-
-#include <QMessageBox>
-#include <QtSerialPort/QSerialPort>
-
-#include <QFileDialog>
-#include <QDebug>
-
-
-
-
-
-
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -69,6 +53,23 @@ MainWindow::MainWindow(QWidget *parent) :
     serial = new QSerialPort(this);
     settings = new SettingsDialog;
 
+
+    m_format.setSampleRate(11025);
+    m_format.setChannelCount(1);
+    m_format.setSampleSize(8);
+    m_format.setCodec("audio/pcm");
+    m_format.setByteOrder(QAudioFormat::LittleEndian);
+    m_format.setSampleType(QAudioFormat::UnSignedInt);
+
+    m_buffer = new QBuffer(&m_buffer_data);
+    m_buffer->open(QIODevice::ReadWrite);
+
+    m_audio = new QAudioOutput(m_format, this);
+    m_audio->setBufferSize(4096);
+    connect(m_audio, SIGNAL(stateChanged(QAudio::State)), this, SLOT(handleStateChanged(QAudio::State)));
+    m_audio->start(m_buffer);
+
+
     ui->actionConnect->setEnabled(true);
     ui->actionDisconnect->setEnabled(false);
     ui->actionQuit->setEnabled(true);
@@ -79,6 +80,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
     connect(serial, SIGNAL(readyRead()), this, SLOT(readData()));
     connect(console, SIGNAL(getData(QByteArray)), this, SLOT(writeData(QByteArray)));
+
+    connect(serial, SIGNAL(bytesWritten(qint64)), this, SLOT(onBytesWritten(qint64)));
+
+    ui->progressBar->setValue(0);
+
 }
 
 MainWindow::~MainWindow()
@@ -87,9 +93,27 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::onBytesWritten(qint64 bytes)
+{
+  Q_UNUSED(bytes);
+  if(m_file.bytesAvailable()>1024){
+    serial->write(m_file.read(1024));
+  }
+  float progress = 1.0f - float(m_file.bytesAvailable()) / float(m_file.size());
+  ui->progressBar->setValue((int) qRound(progress*100.0f));
+
+
+}
+
 void MainWindow::openSerialPort()
 {
     SettingsDialog::Settings p = settings->settings();
+    openSerialPort(p);
+}
+
+
+void MainWindow::openSerialPort(SettingsDialog::Settings p)
+{
     serial->setPortName(p.name);
     serial->setBaudRate(p.baudRate);
     serial->setDataBits(p.dataBits);
@@ -110,6 +134,15 @@ void MainWindow::openSerialPort()
         ui->statusBar->showMessage(tr("Open error"));
     }
 }
+
+void MainWindow::openSerialPort(QString port)
+{
+  SettingsDialog::Settings p = settings->settings();
+  p.name = port;
+  openSerialPort(p);
+
+}
+
 
 void MainWindow::closeSerialPort()
 {
@@ -138,6 +171,8 @@ void MainWindow::readData()
 {
     QByteArray data = serial->readAll();
     console->putData(data);
+    m_buffer_data.append(data);
+
 }
 
 void MainWindow::handleError(QSerialPort::SerialPortError error)
@@ -162,60 +197,61 @@ void MainWindow::initActionsConnections()
 
 void MainWindow::selectFile()
 {
-    QString fileName = QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
-    qDebug() << fileName;
+    //QString fileName = QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
+    //qDebug() << fileName;
 }
 
 
 void MainWindow::on_pushButton_filePicker_clicked()
 {
-    QString fileName = "/home/diego/music/8bit.wav"; // QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
-    console->insertPlainText(fileName);
+  QString filename = "/home/diego/music/8bit.wav";
+  m_file.setFileName(filename);
+  m_file.open(QIODevice::ReadOnly);
+  serial->write(m_file.read(1024));
+}
 
-
-
-    QFile file(fileName);
-
-    wav_hdr_t *wav_hdr = new wav_hdr_t();
-    if (file.open(QIODevice::ReadOnly)) {
-        qint64 bytes = file.read((char *) wav_hdr, sizeof(wav_hdr_t));
-        if (bytes == sizeof(wav_hdr_t)) {
-            qDebug() << "read was good";
-            qDebug() << "file.size() " << file.size();
-            qDebug() << "fileSize : " << wav_hdr->fileSize();
-            qDebug() << "dataSize : " << wav_hdr->dataSize();
-            qDebug() << "WAV_HDR_CHUNK_ID : " << WAV_HDR_CHUNK_ID;
-            qDebug() << "ChunkID : " << wav_hdr->ChunkID;
-            qDebug() << "validChunkID : " << wav_hdr->validChunkID();
-            qDebug() << "validFormat : " << wav_hdr->validFormat();
-            qDebug() << "validSubchunk1ID : " << wav_hdr->validSubchunk1ID();
-            qDebug() << "validSubchunk2ID : " << wav_hdr->validSubchunk2ID();
-            qDebug() << "isPCM : " << wav_hdr->isPCM();
-            qDebug() << "is8bit : " << wav_hdr->is8bit();
-            qDebug() << "isMono : " << wav_hdr->isMono();
-            qDebug() << "valid : " << wav_hdr->valid();
-
-
-
-            int i = 7;
-
-            // pointer to integer and back
-            unsigned int v1 = reinterpret_cast<unsigned int>(&i); // static_cast is an error
-            qDebug() << "The value of &i is 0x" << v1 << "\n";
-            int* p1 = reinterpret_cast<int*>(v1);
-            qDebug() <<  (p1 == &i);
-
-
-            // type aliasing through pointer
-            char* p2 = reinterpret_cast<char*>(&i);
-            if(p2[0] == '\x7')
-                qDebug() << "This system is little-endian\n";
-            else
-                qDebug() << "This system is big-endian\n";
-
-        }
-    }
-
-
+void MainWindow::on_pushButton_openPortA_clicked()
+{
+  openSerialPort("/dev/pts/1");
 
 }
+
+
+void MainWindow::on_pushButton_openPortB_clicked()
+{
+  openSerialPort("/dev/pts/2");
+
+}
+
+
+void MainWindow::handleStateChanged(QAudio::State newState)
+{
+  qDebug() << "AudioSender::handleStateChanged: " << newState ;
+
+  switch (newState) {
+    case QAudio::IdleState:
+      m_buffer->seek(0);
+      // Finished playing (no more data)
+      break;
+
+    case QAudio::StoppedState:
+      // Stopped for other reasons
+      if (m_audio->error() != QAudio::NoError) {
+        // Error handling
+        qDebug() << "m_audio->error(): " << m_audio->error();
+
+      }
+      break;
+
+    default:
+      // ... other cases as appropriate
+      break;
+  }
+}
+
+void MainWindow::on_pushButton_playWavLocally_clicked()
+{
+  AudioSender* as = new AudioSender();
+  as->load();
+}
+
