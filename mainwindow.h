@@ -49,10 +49,12 @@
 
 #include <QtSerialPort/QSerialPort>
 
+#include "wav.h"
 #include "audio_sender.h"
 #include "ui_mainwindow.h"
 #include "console.h"
 #include "settingsdialog.h"
+#include "client.h"
 
 #include <QMessageBox>
 #include <QFileDialog>
@@ -98,8 +100,6 @@ private slots:
   void on_pushButton_openPortA_clicked();
   void on_pushButton_openPortB_clicked();
   void handleStateChanged(QAudio::State newState);
-
-
   void on_pushButton_playWavLocally_clicked();
 
 
@@ -113,6 +113,7 @@ private:
   QBuffer* m_buffer;
   SettingsDialog *settings;
   QSerialPort *serial;
+  Client *client;
 
   void openSerialPort(SettingsDialog::Settings p);
   void openSerialPort(QString port);

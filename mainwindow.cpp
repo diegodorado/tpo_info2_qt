@@ -51,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent) :
     console->setEnabled(false);
     ui->dockWidget_terminal->setWidget(console);
     serial = new QSerialPort(this);
+    client = new Client(this);
     settings = new SettingsDialog;
 
 
@@ -212,14 +213,15 @@ void MainWindow::on_pushButton_filePicker_clicked()
 
 void MainWindow::on_pushButton_openPortA_clicked()
 {
-  openSerialPort("/dev/pts/1");
+  client->sendTest();
+  //openSerialPort("/dev/pts/1");
 
 }
 
 
 void MainWindow::on_pushButton_openPortB_clicked()
 {
-  openSerialPort("/dev/pts/2");
+  openSerialPort("/dev/pts/3");
 
 }
 
@@ -251,7 +253,12 @@ void MainWindow::handleStateChanged(QAudio::State newState)
 
 void MainWindow::on_pushButton_playWavLocally_clicked()
 {
-  AudioSender* as = new AudioSender();
-  as->load();
+  QString filename = "/home/diego/music/8bit.wav";
+  m_file.setFileName(filename);
+  m_file.open(QIODevice::ReadOnly);
+  QByteArray data = m_file.read(sizeof(wav_hdr_t));
+  qDebug() << data[0];
+  wav_hdr_t* wav_header = (wav_hdr_t*) data.data();
+  qDebug() << wav_header->ChunkID;
 }
 
