@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/media-pause.png</file>
+        <file>images/media-play.png</file>
+        <file>images/media-previous.png</file>
+        <file>images/media-next.png</file>
+        <file>images/arrow-up.png</file>
+        <file>images/media-eject.png</file>
+        <file>images/media-record.png</file>
+        <file>images/media-stop.png</file>
+        <file>images/media-volume-0.png</file>
+        <file>images/media-volume-1.png</file>
+        <file>images/save.png</file>
+    </qresource>
+</RCC>

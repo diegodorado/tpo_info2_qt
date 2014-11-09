@@ -6,26 +6,30 @@ Client::Client(QObject *parent) :
   m_pendingMessagesMask.resize(0xFF);
   m_pendingMessagesMask.fill(false);
   m_messagesQueue = new QList<message_t*>();
-  m_serialPort = new QSerialPort(this);
+  m_serialPort = NULL;
+
+  m_fileList = new QList<fileheader_data_t>();
 
 
   m_queueTimer = new QTimer(this);
+  m_fileSendTimer = new QTimer(this);
 
+  connect(m_queueTimer, SIGNAL(timeout()), this, SLOT(processMessagesQueue()));
+  connect(m_fileSendTimer, SIGNAL(timeout()), this, SLOT(processFileSend()));
 
-  connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleSerialError(QSerialPort::SerialPortError)));
-  connect(m_serialPort, SIGNAL(readyRead()), this, SLOT(readSerialData()));
-  connect(m_serialPort, SIGNAL(bytesWritten(qint64)), this, SLOT(onBytesWritten(qint64)));
   connect(this, SIGNAL(bufferReadyRead()), this, SLOT(readMessageFromBuffer()));
   connect(this, SIGNAL(bufferStatusChanged(buffer_status_t)), this, SLOT(handleBufferStatusChanged(buffer_status_t)));
   connect(this, SIGNAL(messageError(message_error_t)), this, SLOT(handleMessageError(message_error_t)));
 
-  openSerialPort();
 
-  connect(m_queueTimer, SIGNAL(timeout()), this, SLOT(processMessagesQueue()));
-  m_queueTimer->start(1000); //fake some delay
+}
 
-  sendFileChunk();
-
+Client::~Client()
+{
+  delete m_messagesQueue;
+  delete m_fileList;
+  delete m_queueTimer;
+  delete m_fileSendTimer;
 }
 
 
@@ -36,86 +40,73 @@ void Client::sendHandshakeRequest()
   request.length = 3;
   request.is_response = 0;
   request.msg_type = MESSAGE_HANDSHAKE;
-  request.msg_id = 0;
+
   //no data.... bodyless message
-  sendMessageRequest(&request);
+  if (trySetMessageId(&request))
+    sendMessageRequest(&request);
 
 }
 
-
-void Client::sendStatusResponse(message_t* request, status_id_t status)
+void Client::getDeviceStatus()
 {
-  message_t response;
-
-  response.length = 4;
-  response.msg_id = request->msg_id;
-  response.msg_type = request->msg_type;
-  response.is_response = 1;
-  response.data = (uint8_t*)&status;
-  //no data.... bodyless message
-  sendMessageResponse(&response);
-
-}
-
-
-
-void Client::sendFileHeader(fileheader_data_t* fileheader_data)
-{
-  uint8_t  length = sizeof(*fileheader_data);
-  uint8_t* data = (uint8_t*) fileheader_data;  //cast data struct as uint8_t pointer
-  message_t message;
-
-  strcpy(fileheader_data->filename,"qwerpoiu");
-  fileheader_data->filesize = 1024;
-  fileheader_data->chunks_count = 10;
-
-
-  message.length = length + 3;
-  message.is_response = 0;
-  message.msg_type = MESSAGE_FILEHEADER;
-  message.data = data;
-
-  for(int i=0;i<=255;i++){
-    message.msg_id = i;
-    sendMessage(&message);
-
-  }
-
-
-}
-
-void Client::sendTest()
-{
-  sendHandshakeRequest();
-  sendFileChunk();
-  //fileheader_data_t fileheader_data;
-  //openSerialPort();
-  //sendFileHeader(&fileheader_data);
-
-
-}
-
-void Client::sendFileChunk()
-{
-
-  QString filename = "/home/diego/music/8bit.wav";
-  m_audioFile.setFileName(filename);
-  m_audioFile.open(QIODevice::ReadOnly);
-
-  QByteArray audioData = m_audioFile.read(200);
-
+  m_fileList->clear();
 
   message_t request;
 
-  request.length = 3 + audioData.size();
-  request.msg_id = 1;
-  request.msg_type = MESSAGE_FILECHUNK;
+  request.length = 3;
   request.is_response = 0;
-  request.data = (uint8_t*) audioData.data();
-  sendMessageRequest(&request);
+  request.msg_type = MESSAGE_INFO_STATUS;
+
+  //no data.... bodyless message
+  if (trySetMessageId(&request))
+    sendMessageRequest(&request);
+}
 
 
-  m_audioFile.close();
+
+void Client::setSerialPort(QSerialPort *serialPort)
+{
+  m_queueTimer->stop();
+  if(m_serialPort !=NULL){
+    disconnect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleSerialError(QSerialPort::SerialPortError)));
+    disconnect(m_serialPort, SIGNAL(readyRead()), this, SLOT(readSerialData()));
+    disconnect(m_serialPort, SIGNAL(bytesWritten(qint64)), this, SLOT(onBytesWritten(qint64)));
+  }
+  m_serialPort = serialPort;
+  connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleSerialError(QSerialPort::SerialPortError)));
+  connect(m_serialPort, SIGNAL(readyRead()), this, SLOT(readSerialData()));
+  connect(m_serialPort, SIGNAL(bytesWritten(qint64)), this, SLOT(onBytesWritten(qint64)));
+  m_queueTimer->start(); //fake some delay
+
+}
+
+void Client::sendFile(QString filename)
+{
+  if(m_audioFile.isOpen()){
+    qDebug() << "a File was open... ";
+    m_audioFile.close();
+  }
+
+
+  m_audioFile.setFileName(filename);
+  m_audioFile.open(QIODevice::ReadOnly);
+
+  m_fileHeaderSent = false;
+  m_fileSendTimer->start();
+}
+
+bool Client::trySetMessageId(message_t *message)
+{
+  if (m_pendingMessagesMask.count(false) == 0)
+    //message queue is full... wait for next iteration
+    return false;
+
+  message->msg_id = 0;
+  while(m_pendingMessagesMask.at(message->msg_id) && message->msg_id<m_pendingMessagesMask.size())
+    message->msg_id++;
+
+  return true;
+
 }
 
 void Client::sendMessage(message_t* message)
@@ -136,7 +127,9 @@ void Client::sendMessage(message_t* message)
   d.append(checksum);
   d.append(END_OF_FRAME);
 
+
   m_serialPort->write(d);
+  qDebug() << "Mensaje enviado; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->length;
 }
 
 void Client::sendMessageRequest(message_t *message)
@@ -158,25 +151,6 @@ void Client::sendMessageResponse(message_t *message)
   sendMessage(message);
 }
 
-void Client::openSerialPort()
-{
-    m_serialPort->setPortName("/dev/ttyUSB0");
-    m_serialPort->setBaudRate(QSerialPort::Baud9600);
-    m_serialPort->setDataBits(QSerialPort::Data8);
-    m_serialPort->setParity(QSerialPort::NoParity);
-    m_serialPort->setStopBits(QSerialPort::OneStop);
-    m_serialPort->setFlowControl(QSerialPort::NoFlowControl);
-    if (m_serialPort->open(QIODevice::ReadWrite)) {
-      qDebug() <<  "Puerto abierto";
-    } else {
-      qDebug() <<  "Error:  " << m_serialPort->errorString();
-    }
-}
-
-void Client::closeSerialPort()
-{
-    m_serialPort->close();
-}
 
 void Client::readSerialData()
 {
@@ -243,7 +217,7 @@ void Client::readMessageFromBuffer()
 
 
 
-  qDebug() << "id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->length;
+  qDebug() << "Mensaje recibido; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->length;
 
 
 
@@ -268,7 +242,7 @@ void Client::handleMessageResponse(message_t *message)
   if(m_pendingMessagesMask.testBit(message->msg_id))
   {
     m_pendingMessagesMask.clearBit(message->msg_id);
-    qDebug() << "handleMessageResponse "<< "(message->data): " << *(message->data);
+    processMessageResponse(message);
   }
   else
   {
@@ -280,10 +254,7 @@ void Client::handleMessageResponse(message_t *message)
 
 void Client::handleSerialError(QSerialPort::SerialPortError error)
 {
-    if (error == QSerialPort::ResourceError) {
-        qDebug() << "Critical Error" << m_serialPort->errorString();
-        closeSerialPort();
-    }
+  qDebug() << "Critical Error" << error;
 }
 
 void Client::handleBufferError(buffer_status_t error)
@@ -328,10 +299,170 @@ void Client::onBytesWritten(qint64 bytes)
 
 }
 
+
+void Client::processFileSend()
+{
+  const int wavHeaderSize = 44;
+  const int chunkSize = 200;
+
+  message_t request;
+
+  if (trySetMessageId(&request))
+    //message queue is full... wait for next iteration
+    return;
+
+
+  if(!m_fileHeaderSent)
+  {
+    fileheader_data_t fileheader_data;
+
+    QFileInfo fileInfo(m_audioFile.fileName());
+
+    m_fileToSendSize = m_audioFile.size() - wavHeaderSize;
+    m_fileToSendChunksCount = m_fileToSendSize / chunkSize;
+    if((m_fileToSendSize % chunkSize) > 0)
+      m_fileToSendChunksCount ++;
+    m_fileToSendChunkIndex = 0;
+
+
+    fileheader_data.filesize = m_fileToSendSize;
+    fileheader_data.chunks_count = m_fileToSendChunksCount;
+    strncpy(fileheader_data.filename,fileInfo.fileName().toUpper().toLatin1().data(),8);
+
+    request.length = sizeof(fileheader_data) + 3;
+    request.is_response = 0;
+    request.msg_type = MESSAGE_FILEHEADER;
+    //cast data struct as uint8_t pointer
+    request.data = (uint8_t*) &fileheader_data;
+    sendMessageRequest(&request);
+    m_fileHeaderSent = true;
+
+  }
+  else
+  {
+    m_audioFile.seek(wavHeaderSize + chunkSize*m_fileToSendChunkIndex);
+    QByteArray ba = m_audioFile.read(chunkSize);
+    //QByteArray chunkIndex((char*)m_fileToSendChunkIndex,sizeof(m_fileToSendChunkIndex));
+    //todo: prepend chunk_id
+    //data on filechunk message have a chunk_id prepended
+    //ba.prepend(chunkIndex);
+    request.length = 3 + ba.size();
+    request.msg_type = MESSAGE_FILECHUNK;
+    request.is_response = 0;
+    request.data = (uint8_t*) ba.data();
+    sendMessageRequest(&request);
+
+
+    if(++m_fileToSendChunkIndex>=m_fileToSendChunksCount)
+    {
+      m_fileSendTimer->stop();
+      //sendHandshakeRequest();
+      //todo:send a confirmation request??
+    }
+
+  }
+
+
+
+
+}
+
+
+
+void Client::processMessageResponse(message_t* message)
+{
+
+  switch(message->msg_type){
+    case MESSAGE_HANDSHAKE:
+      emit handshakeResponse( ((status_id_t) *(message->data)) == STATUS_OK );
+      break;
+    case MESSAGE_INFO_STATUS:
+      processInfoStatusResponse(message);
+      break;
+    case MESSAGE_PLAYBACK_COMMAND:
+      break;
+    case MESSAGE_FILEHEADER:
+      break;
+    case MESSAGE_FILECHUNK:
+      break;
+  }
+
+
+
+}
+
+
+void Client::processInfoStatusResponse(message_t* response)
+{
+
+  qDebug() << "message_t:" << sizeof(message_t);
+  qDebug() << "status_data_t:" << sizeof(status_data_t);
+  qDebug() << "fileheader_data_t:" << sizeof(fileheader_data_t);
+  qDebug() << "filechunk_data_t:" << sizeof(filechunk_data_t);
+  qDebug() << "uint8_t*:" << sizeof(uint8_t*);
+  qDebug() << "NULL:" << sizeof(NULL);
+
+
+
+
+  status_data_t status;
+
+  // first check: response.length - 3 must be at least sizeof(status_data_t)
+  if(response->length < 3 + sizeof(status_data_t)){
+    qDebug() << "Message too short.";
+    return;
+  }
+
+  for(uint8_t i = 0; i < sizeof(status_data_t) ; i++)
+    *( ( (uint8_t*) &status ) + i)  = *(response->data+i);
+
+
+  if(status.sd_connected>1){
+    qDebug() << "Invalid sd_connected value.";
+    return;
+  }
+
+  if(status.files_count>32){
+    qDebug() << "Too many files detected.";
+    return;
+  }
+
+
+  if(response->length != 3 + sizeof(status_data_t) + status.files_count * sizeof(fileheader_data_t) ){
+    qDebug() << "Data length mismatch.";
+    return;
+  }
+
+  for(int i = 0; i<status.files_count;i++)
+  {
+    fileheader_data_t fd;
+     for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)
+      *( ( (uint8_t*) &fd ) + j)  = *(response->data + sizeof(status_data_t) + sizeof(fileheader_data_t) *i + j);
+
+    m_fileList->append(fd);
+
+  }
+
+
+  m_deviceStatus = status;
+  emit infoStatusResponse(m_deviceStatus, m_fileList);
+
+}
+
+
+
+/*
+ * WARNING:
+ * This data is all fake
+ * It is here for testing purposes only.
+ * Normally device wont send any request but only responses
+ *
+*/
 void Client::processMessagesQueue()
 {
 
-  for (int i = 0; i < m_messagesQueue->size(); i++) {
+  //fixme: hardcoded max of message to handle
+  for (int i = 0; i < m_messagesQueue->size() &&  i < 2; i++) {
 
     message_t* message = m_messagesQueue->at(i);
 
@@ -341,22 +472,18 @@ void Client::processMessagesQueue()
         sendStatusResponse(message,STATUS_OK);
         //sendStatusResponse(message,STATUS_ERROR);
         break;
+      case MESSAGE_INFO_STATUS:
+        sendFakeDeviceStatus(message);
+        break;
       case MESSAGE_PLAYBACK_COMMAND:
         break;
       case MESSAGE_FILEHEADER:
+        sendStatusResponse(message,STATUS_OK);
+        qDebug() << "MESSAGE_FILEHEADER: " << "length: " << message->length  << "first data: : " << *(message->data);
         break;
       case MESSAGE_FILECHUNK:
         sendStatusResponse(message,STATUS_OK);
         qDebug() << "MESSAGE_FILECHUNK: " << "length: " << message->length  << "first data: : " << *(message->data);
-        break;
-      case MESSAGE_INFO_AVAILABLE_SPACE:
-        //do no take any special action here
-        break;
-      case MESSAGE_INFO_STATUS:
-        //do no take any special action here
-        break;
-      case MESSAGE_INFO_FILELIST:
-        //do no take any special action here
         break;
     }
 
@@ -368,3 +495,68 @@ void Client::processMessagesQueue()
   }
 
 }
+
+
+
+void Client::sendStatusResponse(message_t* request, status_id_t status)
+{
+  message_t response;
+
+  response.length = 4;
+  response.msg_id = request->msg_id;
+  response.msg_type = request->msg_type;
+  response.is_response = 1;
+  response.data = (uint8_t*)&status;
+  sendMessageResponse(&response);
+
+}
+
+void Client::sendFakeDeviceStatus(message_t *request)
+{
+  message_t response;
+  status_data_t status;
+  status.sd_connected = 1;
+  status.total_space = 500000;
+  status.available_space = 500000;
+  status.files_count = 8;
+
+  QByteArray ba;
+
+
+
+  for(uint8_t i = 0; i < sizeof(status_data_t) ; i++)
+    ba.append( *( ( (uint8_t*) &status ) + i) );
+
+
+  for(int i = 0; i<status.files_count;i++)
+  {
+    fileheader_data_t fd;
+    fd.filesize = m_fileToSendSize;
+    fd.chunks_count = m_fileToSendChunksCount;
+    strncpy(fd.filename,QString("AUDIO_%1").arg(i).toLatin1().data(),8);
+
+    for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)
+      ba.append( *( ( (uint8_t*) &fd ) + j) );
+
+  }
+
+
+  response.msg_id = request->msg_id;
+  response.msg_type = request->msg_type;
+  response.is_response = 1;
+  response.length = 3 + ba.size();
+  response.data = (uint8_t*) ba.data();
+  sendMessageResponse(&response);
+
+
+
+
+
+
+
+
+}
+
+
+
+

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>443</height>
+    <width>637</width>
+    <height>755</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -23,204 +23,657 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Simple Terminal</string>
+   <string>TPO Informatica 2</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
-    <item>
-     <widget class="QPushButton" name="pushButton_openPortA">
-      <property name="text">
-       <string>OPEN PORT A</string>
+   <layout class="QGridLayout" name="gridLayout_4">
+    <item row="0" column="0">
+     <widget class="QGroupBox" name="groupBox_SerialConnection">
+      <property name="title">
+       <string>Puerto Serie</string>
       </property>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_Port">
+         <property name="text">
+          <string>Puerto:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="pushButton_Connect">
+         <property name="text">
+          <string>Conectar</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1" colspan="2">
+        <widget class="QComboBox" name="comboBox_PortList"/>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <widget class="QPushButton" name="pushButton_RefreshPortList">
+         <property name="text">
+          <string>Actualizar Puertos</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
-    <item>
-     <widget class="QPushButton" name="pushButton_openPortB">
-      <property name="text">
-       <string>OPEN PORT B</string>
+    <item row="1" column="0">
+     <widget class="QGroupBox" name="groupBox_DeviceControl">
+      <property name="title">
+       <string>Dispositivo</string>
       </property>
+      <property name="checkable">
+       <bool>false</bool>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QToolButton" name="toolButton_Previous">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="icons.qrc">
+             <normaloff>:/images/media-previous.png</normaloff>:/images/media-previous.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_Pause">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="icons.qrc">
+             <normaloff>:/images/media-pause.png</normaloff>:/images/media-pause.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_Play">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="icons.qrc">
+             <normaloff>:/images/media-play.png</normaloff>:/images/media-play.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_Next">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="icons.qrc">
+             <normaloff>:/images/media-next.png</normaloff>:/images/media-next.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_Upload">
+           <property name="toolTip">
+            <string>Transferir un archivo de Audio al dispositivo</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="icons.qrc">
+             <normaloff>:/images/arrow-up.png</normaloff>:/images/arrow-up.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_audioList">
+         <property name="text">
+          <string>Lista de Audios del Dispositivo</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QListWidget" name="listWidget_DeviceAudios"/>
+       </item>
+      </layout>
      </widget>
     </item>
-    <item>
-     <widget class="QPushButton" name="pushButton_filePicker">
-      <property name="text">
-       <string>Select WAV File</string>
+    <item row="2" column="0">
+     <widget class="QGroupBox" name="groupBox_Log">
+      <property name="title">
+       <string>Progreso de Envio de Audio</string>
       </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="pushButton_playWavLocally">
-      <property name="text">
-       <string>PLAY WAV LOCALLY</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QProgressBar" name="progressBar">
-      <property name="value">
-       <number>24</number>
-      </property>
+      <layout class="QGridLayout" name="gridLayout_5">
+       <item row="0" column="0">
+        <widget class="QProgressBar" name="progressBar">
+         <property name="value">
+          <number>24</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menuBar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>400</width>
-     <height>19</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="menuCalls">
-    <property name="title">
-     <string>Calls</string>
-    </property>
-    <addaction name="actionConnect"/>
-    <addaction name="actionDisconnect"/>
-    <addaction name="separator"/>
-    <addaction name="actionQuit"/>
-   </widget>
-   <widget class="QMenu" name="menuTools">
-    <property name="title">
-     <string>Tools</string>
-    </property>
-    <addaction name="actionConfigure"/>
-    <addaction name="actionClear"/>
-   </widget>
-   <widget class="QMenu" name="menuHelp">
-    <property name="title">
-     <string>Help</string>
-    </property>
-    <addaction name="actionAbout"/>
-    <addaction name="actionAboutQt"/>
-   </widget>
-   <widget class="QMenu" name="menuSendFile">
-    <property name="title">
-     <string>SendFile</string>
-    </property>
-    <addaction name="actionSelectFile"/>
-   </widget>
-   <addaction name="menuCalls"/>
-   <addaction name="menuTools"/>
-   <addaction name="menuHelp"/>
-   <addaction name="menuSendFile"/>
-  </widget>
   <widget class="QStatusBar" name="statusBar"/>
-  <widget class="QDockWidget" name="dockWidget_terminal">
+  <widget class="QDockWidget" name="dockWidget_Terminal">
    <property name="features">
-    <set>QDockWidget::DockWidgetFloatable</set>
+    <set>QDockWidget::NoDockWidgetFeatures</set>
    </property>
    <property name="windowTitle">
-    <string>Terminal</string>
+    <string>Log</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>8</number>
    </attribute>
-   <widget class="QWidget" name="dockWidgetContents_dockWidget_terminal"/>
+   <widget class="QWidget" name="dockWidgetContents_dockWidget_terminal">
+    <layout class="QGridLayout" name="gridLayout_3">
+     <item row="1" column="0">
+      <widget class="QPlainTextEdit" name="plainTextEdit_Log">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="palette">
+        <palette>
+         <active>
+          <colorrole role="WindowText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Button">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Light">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Midlight">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Dark">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Mid">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Text">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>255</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="BrightText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ButtonText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Base">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>17</red>
+             <green>17</green>
+             <blue>17</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Window">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Shadow">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="AlternateBase">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ToolTipBase">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>220</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ToolTipText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+         </active>
+         <inactive>
+          <colorrole role="WindowText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Button">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Light">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Midlight">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Dark">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Mid">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Text">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>255</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="BrightText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ButtonText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Base">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>17</red>
+             <green>17</green>
+             <blue>17</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Window">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Shadow">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="AlternateBase">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ToolTipBase">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>220</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ToolTipText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+         </inactive>
+         <disabled>
+          <colorrole role="WindowText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Button">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Light">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Midlight">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Dark">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Mid">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Text">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="BrightText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ButtonText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Base">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Window">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Shadow">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="AlternateBase">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ToolTipBase">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>220</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="ToolTipText">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>0</red>
+             <green>0</green>
+             <blue>0</blue>
+            </color>
+           </brush>
+          </colorrole>
+         </disabled>
+        </palette>
+       </property>
+       <property name="font">
+        <font>
+         <family>Andale Mono</family>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Sunken</enum>
+       </property>
+       <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOn</enum>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="plainText">
+        <string/>
+       </property>
+       <property name="textInteractionFlags">
+        <set>Qt::NoTextInteraction</set>
+       </property>
+       <property name="centerOnScroll">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
   </widget>
-  <action name="actionAbout">
-   <property name="text">
-    <string>&amp;About</string>
-   </property>
-   <property name="toolTip">
-    <string>About program</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+A</string>
-   </property>
-  </action>
-  <action name="actionAboutQt">
-   <property name="text">
-    <string>About Qt</string>
-   </property>
-  </action>
-  <action name="actionConnect">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/images/connect.png</normaloff>:/images/connect.png</iconset>
-   </property>
-   <property name="text">
-    <string>C&amp;onnect</string>
-   </property>
-   <property name="toolTip">
-    <string>Connect to serial port</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+O</string>
-   </property>
-  </action>
-  <action name="actionDisconnect">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/images/disconnect.png</normaloff>:/images/disconnect.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Disconnect</string>
-   </property>
-   <property name="toolTip">
-    <string>Disconnect from serial port</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+D</string>
-   </property>
-  </action>
-  <action name="actionConfigure">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/images/settings.png</normaloff>:/images/settings.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Configure</string>
-   </property>
-   <property name="toolTip">
-    <string>Configure serial port</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+C</string>
-   </property>
-  </action>
-  <action name="actionClear">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/images/clear.png</normaloff>:/images/clear.png</iconset>
-   </property>
-   <property name="text">
-    <string>C&amp;lear</string>
-   </property>
-   <property name="toolTip">
-    <string>Clear data</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+L</string>
-   </property>
-   <property name="SendFile" stdset="0">
-    <string/>
-   </property>
-  </action>
-  <action name="actionQuit">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/images/application-exit.png</normaloff>:/images/application-exit.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Quit</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Q</string>
-   </property>
-  </action>
-  <action name="actionSelectFile">
-   <property name="text">
-    <string>SelectFile</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+F</string>
-   </property>
-  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources/>
+ <resources>
+  <include location="icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

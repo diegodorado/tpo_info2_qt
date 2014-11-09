@@ -133,17 +133,15 @@ typedef enum {
 
 typedef enum {
   MESSAGE_HANDSHAKE,
+  MESSAGE_INFO_STATUS,
+  MESSAGE_PLAYBACK_COMMAND,
   MESSAGE_FILEHEADER,
   MESSAGE_FILECHUNK,
-  MESSAGE_PLAYBACK_COMMAND,
-  MESSAGE_INFO_AVAILABLE_SPACE,
-  MESSAGE_INFO_FILELIST,
-  MESSAGE_INFO_STATUS,
   MESSAGE_MAX_VALID_TYPE,
 } message_type_t;
 
 typedef enum{
-  BUFFER_NOT_SOF, // not start of fram
+  BUFFER_NOT_SOF, // not start of frame
   BUFFER_SOF,     // start of frame
   BUFFER_IN_MSG,  // in message
   BUFFER_EOF,     // end of frame
@@ -170,15 +168,23 @@ typedef struct
 
 typedef struct
 {
+  u_int32_t filesize;
+  u_int32_t sample_rate;
+  u_int32_t  chunks_count;
   char     filename[8];
-  uint32_t filesize;
-  uint8_t  chunks_count;
 } fileheader_data_t;
 
 typedef struct
 {
-  uint8_t  chunk_id;
-  uint32_t length;  //data length
+  u_int32_t total_space;
+  u_int32_t available_space;
+  uint8_t  sd_connected;
+  uint8_t  files_count;
+} status_data_t;
+
+typedef struct
+{
+  u_int32_t  chunk_id;
   uint8_t*  data;
 } filechunk_data_t;
 

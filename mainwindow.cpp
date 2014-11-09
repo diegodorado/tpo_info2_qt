@@ -47,56 +47,32 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    console = new Console;
-    console->setEnabled(false);
-    ui->dockWidget_terminal->setWidget(console);
-    serial = new QSerialPort(this);
-    client = new Client(this);
-    settings = new SettingsDialog;
+    ui->groupBox_DeviceControl->setEnabled(false);
 
+    m_serialPort = new QSerialPort(this);
+    m_client = new Client(this);
 
-    m_format.setSampleRate(11025);
-    m_format.setChannelCount(1);
-    m_format.setSampleSize(8);
-    m_format.setCodec("audio/pcm");
-    m_format.setByteOrder(QAudioFormat::LittleEndian);
-    m_format.setSampleType(QAudioFormat::UnSignedInt);
-
-    m_buffer = new QBuffer(&m_buffer_data);
-    m_buffer->open(QIODevice::ReadWrite);
-
-    m_audio = new QAudioOutput(m_format, this);
-    m_audio->setBufferSize(4096);
-    connect(m_audio, SIGNAL(stateChanged(QAudio::State)), this, SLOT(handleStateChanged(QAudio::State)));
-    m_audio->start(m_buffer);
-
-
-    ui->actionConnect->setEnabled(true);
-    ui->actionDisconnect->setEnabled(false);
-    ui->actionQuit->setEnabled(true);
-    ui->actionConfigure->setEnabled(true);
-
-    initActionsConnections();
-
-    connect(serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
-    connect(serial, SIGNAL(readyRead()), this, SLOT(readData()));
-    connect(console, SIGNAL(getData(QByteArray)), this, SLOT(writeData(QByteArray)));
-
-    connect(serial, SIGNAL(bytesWritten(qint64)), this, SLOT(onBytesWritten(qint64)));
+    connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
+    connect(m_client, SIGNAL(handshakeResponse(bool)), this, SLOT(handleHandshakeResponse(bool)));
+    connect(m_client,SIGNAL(infoStatusResponse(status_data_t,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(status_data_t,QList<fileheader_data_t>*)));
 
     ui->progressBar->setValue(0);
+
+    refreshSerialPortList();
 
 }
 
 MainWindow::~MainWindow()
 {
-    delete settings;
-    delete ui;
+  delete ui;
+  delete m_serialPort;
+  delete m_client;
 }
-
+  /*
 void MainWindow::onBytesWritten(qint64 bytes)
 {
   Q_UNUSED(bytes);
+
   if(m_file.bytesAvailable()>1024){
     serial->write(m_file.read(1024));
   }
@@ -106,159 +82,185 @@ void MainWindow::onBytesWritten(qint64 bytes)
 
 }
 
+*/
+
+
+
+
+
+
+void MainWindow::on_toolButton_Previous_clicked()
+{
+
+}
+
+void MainWindow::on_toolButton_Pause_clicked()
+{
+
+}
+
+void MainWindow::on_toolButton_Play_clicked()
+{
+
+}
+
+void MainWindow::on_toolButton_Next_clicked()
+{
+
+}
+
+void MainWindow::on_toolButton_Upload_clicked()
+{
+
+  //QString fileName = QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
+  //qDebug() << fileName;
+
+  QString filename = "/home/diego/music/8bit.wav";
+  //QByteArray data = m_file.read(sizeof(wav_hdr_t));
+  //wav_hdr_t* wav_header = (wav_hdr_t*) data.data();
+  //qDebug() << wav_header->ChunkID;
+
+
+}
+
+void MainWindow::on_pushButton_RefreshPortList_clicked()
+{
+  refreshSerialPortList();
+}
+
+void MainWindow::on_pushButton_Connect_clicked()
+{
+  if (m_serialPort->isOpen())
+    closeSerialPort();
+  else
+    openSerialPort();
+
+  updateConnectButtonLabel();
+
+
+  if (m_serialPort->isOpen()){
+    m_client->setSerialPort(m_serialPort);
+    m_client->sendHandshakeRequest();
+    log(QString("Iniciando handshake..."));
+
+  }
+
+
+}
+
+
+
+
+void MainWindow::refreshSerialPortList()
+{
+  ui->comboBox_PortList->clear();
+  foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+      ui->comboBox_PortList->addItem(info.portName(), info.portName());
+  }
+}
+
+void MainWindow::updateConnectButtonLabel()
+{
+  if(m_serialPort->isOpen())
+    ui->pushButton_Connect->setText("Desconectar");
+  else
+    ui->pushButton_Connect->setText("Conectar");
+}
+
+
 void MainWindow::openSerialPort()
 {
-    SettingsDialog::Settings p = settings->settings();
-    openSerialPort(p);
-}
+  log(QString("Intentando abrir puerto serie."));
 
+  if (ui->comboBox_PortList->currentData().isNull()){
+    QMessageBox::critical(this, "Error de Conecxion","seleccione un puerto válido");
+    ui->statusBar->showMessage(tr("Seleccione un puerto valido"));
+    log(QString("El puerto no es válido."));
+    return;
+  }
 
-void MainWindow::openSerialPort(SettingsDialog::Settings p)
-{
-    serial->setPortName(p.name);
-    serial->setBaudRate(p.baudRate);
-    serial->setDataBits(p.dataBits);
-    serial->setParity(p.parity);
-    serial->setStopBits(p.stopBits);
-    serial->setFlowControl(p.flowControl);
-    if (serial->open(QIODevice::ReadWrite)) {
-            console->setEnabled(true);
-            console->setLocalEchoEnabled(p.localEchoEnabled);
-            ui->actionConnect->setEnabled(false);
-            ui->actionDisconnect->setEnabled(true);
-            ui->actionConfigure->setEnabled(false);
-            ui->statusBar->showMessage(tr("Connected to %1 : %2, %3, %4, %5, %6")
-                                       .arg(p.name).arg(p.stringBaudRate).arg(p.stringDataBits)
-                                       .arg(p.stringParity).arg(p.stringStopBits).arg(p.stringFlowControl));
-    } else {
-        QMessageBox::critical(this, tr("Error"), serial->errorString());
-        ui->statusBar->showMessage(tr("Open error"));
-    }
-}
+  m_serialPort->setPortName(ui->comboBox_PortList->currentData().toString());
+  m_serialPort->setBaudRate(QSerialPort::Baud9600);
+  m_serialPort->setDataBits(QSerialPort::Data8);
+  m_serialPort->setParity(QSerialPort::NoParity);
+  m_serialPort->setStopBits(QSerialPort::OneStop);
+  m_serialPort->setFlowControl(QSerialPort::NoFlowControl);
 
-void MainWindow::openSerialPort(QString port)
-{
-  SettingsDialog::Settings p = settings->settings();
-  p.name = port;
-  openSerialPort(p);
+  if(m_serialPort->open(QIODevice::ReadWrite))
+  {
+    ui->statusBar->showMessage("Conectado a " + ui->comboBox_PortList->currentData().toString());
+    log(QString("Conectado a %1 .").arg(ui->comboBox_PortList->currentText()));
+  }
+  else
+  {
+    ui->statusBar->showMessage(tr("Error al abrir puerto"));
+    log(QString("Error al abrir puerto %1 .").arg(ui->comboBox_PortList->currentText()));
+  }
+
 
 }
-
 
 void MainWindow::closeSerialPort()
 {
-    serial->close();
-    console->setEnabled(false);
-    ui->actionConnect->setEnabled(true);
-    ui->actionDisconnect->setEnabled(false);
-    ui->actionConfigure->setEnabled(true);
-    ui->statusBar->showMessage(tr("Disconnected"));
+  log(QString("Cerrando puerto serie."));
+  m_serialPort->close();
+  ui->listWidget_DeviceAudios->clear();
+  ui->groupBox_DeviceControl->setEnabled(false);
+  ui->statusBar->showMessage(tr("No Conectado"));
 }
 
-void MainWindow::about()
+void MainWindow::log(QString msg)
 {
-    QMessageBox::about(this, tr("About Simple Terminal"),
-                       tr("The <b>Simple Terminal</b> example demonstrates how to "
-                          "use the Qt Serial Port module in modern GUI applications "
-                          "using Qt, with a menu bar, toolbars, and a status bar."));
-}
-
-void MainWindow::writeData(const QByteArray &data)
-{
-    serial->write(data);
-}
-
-void MainWindow::readData()
-{
-    QByteArray data = serial->readAll();
-    console->putData(data);
-    m_buffer_data.append(data);
+  msg.append("\n");
+  ui->plainTextEdit_Log->insertPlainText(msg);
+  ui->plainTextEdit_Log->centerCursor();
 
 }
 
 void MainWindow::handleError(QSerialPort::SerialPortError error)
 {
-    if (error == QSerialPort::ResourceError) {
-        QMessageBox::critical(this, tr("Critical Error"), serial->errorString());
-        closeSerialPort();
-    }
-}
-
-void MainWindow::initActionsConnections()
-{
-    connect(ui->actionConnect, SIGNAL(triggered()), this, SLOT(openSerialPort()));
-    connect(ui->actionDisconnect, SIGNAL(triggered()), this, SLOT(closeSerialPort()));
-    connect(ui->actionQuit, SIGNAL(triggered()), this, SLOT(close()));
-    connect(ui->actionConfigure, SIGNAL(triggered()), settings, SLOT(show()));
-    connect(ui->actionClear, SIGNAL(triggered()), console, SLOT(clear()));
-    connect(ui->actionAbout, SIGNAL(triggered()), this, SLOT(about()));
-    connect(ui->actionAboutQt, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
-    connect(ui->actionSelectFile, SIGNAL(triggered()), this, SLOT(selectFile()));
-}
-
-void MainWindow::selectFile()
-{
-    //QString fileName = QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
-    //qDebug() << fileName;
-}
-
-
-void MainWindow::on_pushButton_filePicker_clicked()
-{
-  QString filename = "/home/diego/music/8bit.wav";
-  m_file.setFileName(filename);
-  m_file.open(QIODevice::ReadOnly);
-  serial->write(m_file.read(1024));
-}
-
-void MainWindow::on_pushButton_openPortA_clicked()
-{
-  client->sendTest();
-  //openSerialPort("/dev/pts/1");
-
-}
-
-
-void MainWindow::on_pushButton_openPortB_clicked()
-{
-  openSerialPort("/dev/pts/3");
-
-}
-
-
-void MainWindow::handleStateChanged(QAudio::State newState)
-{
-  qDebug() << "AudioSender::handleStateChanged: " << newState ;
-
-  switch (newState) {
-    case QAudio::IdleState:
-      m_buffer->seek(0);
-      // Finished playing (no more data)
-      break;
-
-    case QAudio::StoppedState:
-      // Stopped for other reasons
-      if (m_audio->error() != QAudio::NoError) {
-        // Error handling
-        qDebug() << "m_audio->error(): " << m_audio->error();
-
-      }
-      break;
-
-    default:
-      // ... other cases as appropriate
-      break;
+  if (error == QSerialPort::ResourceError) {
+    log(QString("Error Critico %1.").arg(m_serialPort->errorString()));
+    QMessageBox::critical(this, "Error Critico", m_serialPort->errorString());
+    closeSerialPort();
   }
 }
 
-void MainWindow::on_pushButton_playWavLocally_clicked()
+
+
+void MainWindow::handleHandshakeResponse(bool success)
 {
-  QString filename = "/home/diego/music/8bit.wav";
-  m_file.setFileName(filename);
-  m_file.open(QIODevice::ReadOnly);
-  QByteArray data = m_file.read(sizeof(wav_hdr_t));
-  qDebug() << data[0];
-  wav_hdr_t* wav_header = (wav_hdr_t*) data.data();
-  qDebug() << wav_header->ChunkID;
+  if(success)
+  {
+    log(QString("Hanshake aceptado."));
+    m_client->getDeviceStatus();
+    log(QString("Solicitando estado del dispositivo..."));
+  }
+  else
+  {
+    log(QString("Dispositivo no detectado."));
+  }
+
+
 }
+
+void MainWindow::handleInfoStatusResponse(status_data_t status, QList<fileheader_data_t> * fileList)
+{
+  log(QString("Estado del dispositivo recibida."));
+  ui->groupBox_DeviceControl->setEnabled(true);
+
+  log(QString(" -> SD conectada: %1.").arg(status.sd_connected));
+  log(QString(" -> Espacio disponible: %1.").arg(status.available_space));
+  log(QString(" -> Espacio Total: %1.").arg(status.total_space));
+  log(QString(" -> Cantidad de Audios: %1.").arg(status.files_count));
+
+
+  ui->listWidget_DeviceAudios->clear();
+  foreach (const fileheader_data_t &file_header, *fileList) {
+      ui->listWidget_DeviceAudios->addItem(QString(file_header.filename));
+  }
+
+}
+
+
 

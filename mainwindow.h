@@ -44,35 +44,23 @@
 #define MAINWINDOW_H
 
 #include <QtCore/QtGlobal>
-
 #include <QMainWindow>
-
+#include <QtSerialPort/QSerialPortInfo>
 #include <QtSerialPort/QSerialPort>
-
-#include "wav.h"
-#include "audio_sender.h"
-#include "ui_mainwindow.h"
-#include "console.h"
-#include "settingsdialog.h"
-#include "client.h"
-
 #include <QMessageBox>
 #include <QFileDialog>
-#include <QDebug>
 
-#include <QAudioFormat>
-#include <QAudioOutput>
-#include <QAudioDeviceInfo>
-#include <QBuffer>
+#include "wav.h"
+#include "ui_mainwindow.h"
+#include "client.h"
+
 
 QT_BEGIN_NAMESPACE
 
 namespace Ui {
 class MainWindow;
 }
-
 QT_END_NAMESPACE
-
 
 
 class MainWindow : public QMainWindow
@@ -80,44 +68,47 @@ class MainWindow : public QMainWindow
   Q_OBJECT
 
 
-
-
-
 public:
   explicit MainWindow(QWidget *parent = 0);
   ~MainWindow();
 
-private slots:
-  void onBytesWritten(qint64 bytes);
-  void openSerialPort();
-  void closeSerialPort();
-  void about();
-  void writeData(const QByteArray &data);
-  void readData();
-  void selectFile();
-  void handleError(QSerialPort::SerialPortError error);
-  void on_pushButton_filePicker_clicked();
-  void on_pushButton_openPortA_clicked();
-  void on_pushButton_openPortB_clicked();
-  void handleStateChanged(QAudio::State newState);
-  void on_pushButton_playWavLocally_clicked();
 
+private slots:
+  void handleError(QSerialPort::SerialPortError error);
+
+  void on_toolButton_Previous_clicked();
+
+  void on_toolButton_Pause_clicked();
+
+  void on_toolButton_Play_clicked();
+
+  void on_toolButton_Next_clicked();
+
+  void on_toolButton_Upload_clicked();
+
+  void on_pushButton_RefreshPortList_clicked();
+
+  void on_pushButton_Connect_clicked();
+
+  void handleHandshakeResponse(bool);
+
+  void handleInfoStatusResponse(status_data_t status, QList<fileheader_data_t>*fileList);
 
 private:
   Ui::MainWindow *ui;
-  Console *console;
-  QFile m_file;
-  QAudioFormat m_format;
-  QAudioOutput* m_audio;
-  QByteArray m_buffer_data;
-  QBuffer* m_buffer;
-  SettingsDialog *settings;
-  QSerialPort *serial;
-  Client *client;
+  QSerialPort *m_serialPort;
+  Client *m_client;
 
-  void openSerialPort(SettingsDialog::Settings p);
-  void openSerialPort(QString port);
-  void initActionsConnections();
+
+  void openSerialPort();
+
+  void refreshSerialPortList();
+
+  void updateConnectButtonLabel();
+
+  void closeSerialPort();
+
+  void log(QString msg);
 
 };
 
