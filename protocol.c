@@ -27,6 +27,7 @@ static buffer_status_t buffer_status = BUFFER_NOT_SOF; //initial buffer state
 //static functions prototypes
 static uint8_t validate_buffer_checksum();
 static int validate_end_of_frame();
+static int buffered_message_data_length();
 static int buffered_message_length();
 static uint8_t raw_rx_buffer_at(int i);
 static int raw_rx_buffer_pos(int i);
@@ -36,16 +37,16 @@ static void raw_rx_buffer_clear ();
 
 
 
-uint8_t messageGetChecksum(message_t* message)
+uint8_t messageGetChecksum(message_hdr_t* message, uint8_t* data)
 {
   uint8_t result = 0;
   int i;
 
-  result ^= message->length;
+  result ^= message->data_length;
   result ^= message->msg_id;
   result ^= message->msg_full_type;
-  for(i = 0; i < message->length - 3 ; i++)
-    result ^= *(message->data+i);
+  for(i = 0; i < message->data_length; i++)
+    result ^= *(data+i);
 
   return result;
 }
@@ -131,7 +132,7 @@ static uint8_t raw_rx_buffer_at(int i)
  * caution! only valid if buffer status
  * is BUFFER_IN_MSG or BUFFER_EOF
 */
-static int buffered_message_length()
+static int buffered_message_data_length()
 {
   if (buffer_status!=BUFFER_EOF
       && buffer_status!=BUFFER_IN_MSG
@@ -140,6 +141,12 @@ static int buffered_message_length()
 
   //msg length is the first byte
   return raw_rx_buffer_at(0);
+}
+
+
+static int buffered_message_length()
+{
+  return sizeof(message_hdr_t) + buffered_message_data_length();
 }
 
 
@@ -234,12 +241,8 @@ buffer_status_t messagesBufferProcess ( void)
   }
 
   if(buffer_status==BUFFER_IN_MSG) {
-    if(buffered_message_length() < 3)
-      // length is at least 3 for bodyless messages (length is unsigned)
-      buffer_status = BUFFER_ERROR_INVALID_MSG_LENGTH;
-
-    else if(raw_rx_buffer_count() >= buffered_message_length()  + 2)
-      //if buffer length is more than message length + checksum byte + eof byte
+    if(raw_rx_buffer_count() >= buffered_message_length()  + 2)
+      //if buffer length is more than message header + data length + checksum byte + eof byte
       //then, frame should be ended
       buffer_status = BUFFER_EOF;
   }
@@ -275,6 +278,10 @@ buffer_status_t messagesBufferProcess ( void)
   return buffer_status;
 }
 
+uint8_t* messageData(message_hdr_t* message)
+{
+  return (uint8_t*) message + sizeof(message_hdr_t) ;
+}
 
 
 
@@ -284,6 +291,8 @@ buffer_status_t messagesBufferProcess ( void)
 Close c++ bracket for Multi Language Header
 */
 #ifdef __cplusplus
+
+
 }
 #endif
 /*

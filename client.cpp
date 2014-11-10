@@ -5,7 +5,7 @@ Client::Client(QObject *parent) :
 {
   m_pendingMessagesMask.resize(0xFF);
   m_pendingMessagesMask.fill(false);
-  m_messagesQueue = new QList<message_t*>();
+  m_messagesQueue = new QList<message_hdr_t*>();
   m_serialPort = NULL;
 
   m_fileList = new QList<fileheader_data_t>();
@@ -14,8 +14,18 @@ Client::Client(QObject *parent) :
   m_queueTimer = new QTimer(this);
   m_fileSendTimer = new QTimer(this);
 
+  m_handshakeResponseTimer = new QTimer(this);
+  m_infoStatusResponseTimer = new QTimer(this);
+  m_sendCommandResponseTimer = new QTimer(this);
+  m_sendFileResponseTimer = new QTimer(this);
+
   connect(m_queueTimer, SIGNAL(timeout()), this, SLOT(processMessagesQueue()));
   connect(m_fileSendTimer, SIGNAL(timeout()), this, SLOT(processFileSend()));
+
+  connect(m_handshakeResponseTimer, SIGNAL(timeout()), this, SLOT(handshakeResponseTimeout()));
+  connect(m_infoStatusResponseTimer, SIGNAL(timeout()), this, SLOT(infoStatusResponseTimeout()));
+  connect(m_sendCommandResponseTimer, SIGNAL(timeout()), this, SLOT(sendCommandResponseTimeout()));
+  connect(m_sendFileResponseTimer, SIGNAL(timeout()), this, SLOT(sendFileResponseTimeout()));
 
   connect(this, SIGNAL(bufferReadyRead()), this, SLOT(readMessageFromBuffer()));
   connect(this, SIGNAL(bufferStatusChanged(buffer_status_t)), this, SLOT(handleBufferStatusChanged(buffer_status_t)));
@@ -35,31 +45,75 @@ Client::~Client()
 
 void Client::sendHandshakeRequest()
 {
-  message_t request;
+  message_hdr_t request;
 
-  request.length = 3;
+  request.data_length = 0;
   request.is_response = 0;
   request.msg_type = MESSAGE_HANDSHAKE;
 
-  //no data.... bodyless message
-  if (trySetMessageId(&request))
-    sendMessageRequest(&request);
+  if ( m_handshakeResponseTimer->isActive())
+  {
+    qDebug() << "Already waiting for handshake response.";
+    emit handshakeResponse(false);
+    return;
+  }
 
+  if (trySetMessageId(&request))
+  {
+    //no data.... bodyless message
+    sendMessageRequest(&request, NULL);
+    m_handshakeResponseTimer->start(RESPONSE_TIMEOUT_MS);
+  }
+
+}
+
+void Client::sendPlaybackCommandRequest(playback_command_type_t command)
+{
+  message_hdr_t request;
+
+  request.data_length = 1;
+  request.is_response = 0;
+  request.msg_type = MESSAGE_PLAYBACK_COMMAND;
+
+  if ( m_sendCommandResponseTimer->isActive())
+  {
+    qDebug() << "Already waiting for playback command response.";
+    emit sendCommandResponse(false);
+    return;
+  }
+
+  if (trySetMessageId(&request))
+  {
+    //no data.... bodyless message
+    sendMessageRequest(&request, (uint8_t*) &command);
+    m_sendCommandResponseTimer->start(RESPONSE_TIMEOUT_MS);
+  }
 }
 
 void Client::getDeviceStatus()
 {
   m_fileList->clear();
 
-  message_t request;
+  message_hdr_t request;
 
-  request.length = 3;
+  request.data_length = 0;
   request.is_response = 0;
   request.msg_type = MESSAGE_INFO_STATUS;
 
-  //no data.... bodyless message
+  if ( m_infoStatusResponseTimer->isActive())
+  {
+    qDebug() << "Already waiting for MESSAGE_INFO_STATUS response.";
+    //emit infoStatusResponse(false);
+    return;
+  }
+
   if (trySetMessageId(&request))
-    sendMessageRequest(&request);
+  {
+    //no data.... bodyless message
+    sendMessageRequest(&request, NULL);
+    m_infoStatusResponseTimer->start(RESPONSE_TIMEOUT_MS);
+  }
+
 }
 
 
@@ -95,7 +149,7 @@ void Client::sendFile(QString filename)
   m_fileSendTimer->start();
 }
 
-bool Client::trySetMessageId(message_t *message)
+bool Client::trySetMessageId(message_hdr_t *message)
 {
   if (m_pendingMessagesMask.count(false) == 0)
     //message queue is full... wait for next iteration
@@ -109,19 +163,19 @@ bool Client::trySetMessageId(message_t *message)
 
 }
 
-void Client::sendMessage(message_t* message)
+void Client::sendMessage(message_hdr_t* message, uint8_t* data)
 {
   QByteArray d;
 
-  uint8_t checksum = messageGetChecksum(message);
+  uint8_t checksum = messageGetChecksum(message, data);
 
   d.append(START_OF_FRAME);
-  d.append(message->length);
+  d.append(message->data_length);
   d.append(message->msg_id);
   d.append(message->msg_full_type);
 
-  for(int i = 0; i < message->length - 3 ; i++){
-    d.append(*(message->data+i));
+  for(int i = 0; i < message->data_length ; i++){
+    d.append(*(data + i));
   }
 
   d.append(checksum);
@@ -129,10 +183,10 @@ void Client::sendMessage(message_t* message)
 
 
   m_serialPort->write(d);
-  qDebug() << "Mensaje enviado; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->length;
+  qDebug() << "Mensaje enviado; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->data_length;
 }
 
-void Client::sendMessageRequest(message_t *message)
+void Client::sendMessageRequest(message_hdr_t* message, uint8_t* data)
 {
   if(m_pendingMessagesMask.testBit(message->msg_id))
   {
@@ -141,14 +195,14 @@ void Client::sendMessageRequest(message_t *message)
   else
   {
     m_pendingMessagesMask.setBit(message->msg_id);
-    sendMessage(message);
+    sendMessage(message, data);
     //todo: implement a timeout for the response
   }
 }
 
-void Client::sendMessageResponse(message_t *message)
+void Client::sendMessageResponse(message_hdr_t* message, uint8_t* data)
 {
-  sendMessage(message);
+  sendMessage(message, data);
 }
 
 
@@ -181,7 +235,7 @@ void Client::readSerialData()
       case BUFFER_ERROR_CHECKSUM:
       case BUFFER_ERROR_EOF_EXPECTED:
       case BUFFER_ERROR_INVALID_MSG_LENGTH:
-        emit bufferError(previous_status);
+        emit bufferError(m_bufferStatus);
         break;
     }
     // this while is controlled
@@ -194,12 +248,15 @@ void Client::readSerialData()
 void Client::readMessageFromBuffer()
 {
   uint8_t* raw_data = messagesBufferPop();
-  message_t* message = (message_t*) raw_data;
+  message_hdr_t* message = (message_hdr_t*) raw_data;
+
+
+  for(int i=0;i<message->data_length;i++)
+    qDebug() << *(raw_data+i);
 
   //data is a pointer, so casting raw data is only valid
   //for fixed size struct members
   //use wisely: message->length - 3 will tell size of data
-  message->data = (raw_data+3);
 
   //perform some common validations
 
@@ -217,7 +274,7 @@ void Client::readMessageFromBuffer()
 
 
 
-  qDebug() << "Mensaje recibido; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->length;
+  qDebug() << "Mensaje recibido; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->data_length;
 
 
 
@@ -230,13 +287,13 @@ void Client::readMessageFromBuffer()
 
 }
 
-void Client::handleMessageRequest(message_t *message)
+void Client::handleMessageRequest(message_hdr_t *message)
 {
   // enqueu message
   m_messagesQueue->append(message);
 }
 
-void Client::handleMessageResponse(message_t *message)
+void Client::handleMessageResponse(message_hdr_t *message)
 {
   //check if a request was made
   if(m_pendingMessagesMask.testBit(message->msg_id))
@@ -305,7 +362,7 @@ void Client::processFileSend()
   const int wavHeaderSize = 44;
   const int chunkSize = 200;
 
-  message_t request;
+  message_hdr_t request;
 
   if (trySetMessageId(&request))
     //message queue is full... wait for next iteration
@@ -329,12 +386,11 @@ void Client::processFileSend()
     fileheader_data.chunks_count = m_fileToSendChunksCount;
     strncpy(fileheader_data.filename,fileInfo.fileName().toUpper().toLatin1().data(),8);
 
-    request.length = sizeof(fileheader_data) + 3;
+    request.data_length = sizeof(fileheader_data);
     request.is_response = 0;
     request.msg_type = MESSAGE_FILEHEADER;
     //cast data struct as uint8_t pointer
-    request.data = (uint8_t*) &fileheader_data;
-    sendMessageRequest(&request);
+    sendMessageRequest(&request, (uint8_t*) &fileheader_data);
     m_fileHeaderSent = true;
 
   }
@@ -346,11 +402,10 @@ void Client::processFileSend()
     //todo: prepend chunk_id
     //data on filechunk message have a chunk_id prepended
     //ba.prepend(chunkIndex);
-    request.length = 3 + ba.size();
+    request.data_length = ba.size();
     request.msg_type = MESSAGE_FILECHUNK;
     request.is_response = 0;
-    request.data = (uint8_t*) ba.data();
-    sendMessageRequest(&request);
+    sendMessageRequest(&request, (uint8_t*) ba.data());
 
 
     if(++m_fileToSendChunkIndex>=m_fileToSendChunksCount)
@@ -369,17 +424,20 @@ void Client::processFileSend()
 
 
 
-void Client::processMessageResponse(message_t* message)
+void Client::processMessageResponse(message_hdr_t* message)
 {
 
   switch(message->msg_type){
     case MESSAGE_HANDSHAKE:
-      emit handshakeResponse( ((status_id_t) *(message->data)) == STATUS_OK );
+      m_handshakeResponseTimer->stop(); //prevent a timeout
+      emit handshakeResponse( * messageData(message) == STATUS_OK );
       break;
     case MESSAGE_INFO_STATUS:
       processInfoStatusResponse(message);
       break;
     case MESSAGE_PLAYBACK_COMMAND:
+      m_sendCommandResponseTimer->stop(); //prevent a timeout
+      emit sendCommandResponse( * messageData(message) == STATUS_OK );
       break;
     case MESSAGE_FILEHEADER:
       break;
@@ -392,44 +450,40 @@ void Client::processMessageResponse(message_t* message)
 }
 
 
-void Client::processInfoStatusResponse(message_t* response)
+void Client::processInfoStatusResponse(message_hdr_t* response)
 {
 
-  qDebug() << "message_t:" << sizeof(message_t);
-  qDebug() << "status_data_t:" << sizeof(status_data_t);
-  qDebug() << "fileheader_data_t:" << sizeof(fileheader_data_t);
-  qDebug() << "filechunk_data_t:" << sizeof(filechunk_data_t);
-  qDebug() << "uint8_t*:" << sizeof(uint8_t*);
-  qDebug() << "NULL:" << sizeof(NULL);
+  m_infoStatusResponseTimer->stop();
 
-
-
-
-  status_data_t status;
+  status_hdr_t status;
 
   // first check: response.length - 3 must be at least sizeof(status_data_t)
-  if(response->length < 3 + sizeof(status_data_t)){
+  if(response->data_length < sizeof(status_hdr_t)){
     qDebug() << "Message too short.";
+    emit infoStatusResponse(false,NULL,NULL);
     return;
   }
 
-  for(uint8_t i = 0; i < sizeof(status_data_t) ; i++)
-    *( ( (uint8_t*) &status ) + i)  = *(response->data+i);
+  for(uint8_t i = 0; i < sizeof(status_hdr_t) ; i++)
+    *( (uint8_t*) &status + i)  = * ( messageData(response) + i );
 
 
   if(status.sd_connected>1){
     qDebug() << "Invalid sd_connected value.";
+    emit infoStatusResponse(false,NULL,NULL);
     return;
   }
 
   if(status.files_count>32){
     qDebug() << "Too many files detected.";
+    emit infoStatusResponse(false,NULL,NULL);
     return;
   }
 
 
-  if(response->length != 3 + sizeof(status_data_t) + status.files_count * sizeof(fileheader_data_t) ){
+  if(response->data_length != sizeof(status_hdr_t) + status.files_count * sizeof(fileheader_data_t) ){
     qDebug() << "Data length mismatch.";
+    emit infoStatusResponse(false,NULL,NULL);
     return;
   }
 
@@ -437,7 +491,7 @@ void Client::processInfoStatusResponse(message_t* response)
   {
     fileheader_data_t fd;
      for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)
-      *( ( (uint8_t*) &fd ) + j)  = *(response->data + sizeof(status_data_t) + sizeof(fileheader_data_t) *i + j);
+      *( (uint8_t*) &fd  + j)  = * ( messageData(response) + sizeof(status_hdr_t) + sizeof(fileheader_data_t) * i + j );
 
     m_fileList->append(fd);
 
@@ -445,10 +499,35 @@ void Client::processInfoStatusResponse(message_t* response)
 
 
   m_deviceStatus = status;
-  emit infoStatusResponse(m_deviceStatus, m_fileList);
+  emit infoStatusResponse(true, &m_deviceStatus, m_fileList);
 
 }
 
+
+
+void Client::handshakeResponseTimeout()
+{
+  m_handshakeResponseTimer->stop();
+  emit handshakeResponse(false);
+}
+
+void Client::infoStatusResponseTimeout()
+{
+  m_infoStatusResponseTimer->stop();
+  emit infoStatusResponse(false,NULL,NULL);
+}
+
+void Client::sendCommandResponseTimeout()
+{
+  m_sendCommandResponseTimer->stop();
+  emit sendCommandResponse(false);
+}
+
+void Client::sendFileResponseTimeout()
+{
+  m_sendFileResponseTimer->stop();
+  emit sendFileResponse(false);
+}
 
 
 /*
@@ -464,7 +543,7 @@ void Client::processMessagesQueue()
   //fixme: hardcoded max of message to handle
   for (int i = 0; i < m_messagesQueue->size() &&  i < 2; i++) {
 
-    message_t* message = m_messagesQueue->at(i);
+    message_hdr_t* message = m_messagesQueue->at(i);
 
 
     switch(message->msg_type){
@@ -476,14 +555,15 @@ void Client::processMessagesQueue()
         sendFakeDeviceStatus(message);
         break;
       case MESSAGE_PLAYBACK_COMMAND:
+        sendStatusResponse(message,STATUS_OK);
         break;
       case MESSAGE_FILEHEADER:
         sendStatusResponse(message,STATUS_OK);
-        qDebug() << "MESSAGE_FILEHEADER: " << "length: " << message->length  << "first data: : " << *(message->data);
+        qDebug() << "MESSAGE_FILEHEADER: " << "length: " << message->data_length;
         break;
       case MESSAGE_FILECHUNK:
         sendStatusResponse(message,STATUS_OK);
-        qDebug() << "MESSAGE_FILECHUNK: " << "length: " << message->length  << "first data: : " << *(message->data);
+        qDebug() << "MESSAGE_FILECHUNK: " << "length: " << message->data_length ;
         break;
     }
 
@@ -498,33 +578,33 @@ void Client::processMessagesQueue()
 
 
 
-void Client::sendStatusResponse(message_t* request, status_id_t status)
-{
-  message_t response;
 
-  response.length = 4;
+void Client::sendStatusResponse(message_hdr_t* request, status_id_t status)
+{
+  message_hdr_t response;
+
+  response.data_length = 1;
   response.msg_id = request->msg_id;
   response.msg_type = request->msg_type;
   response.is_response = 1;
-  response.data = (uint8_t*)&status;
-  sendMessageResponse(&response);
+  sendMessageResponse(&response, (uint8_t*)&status);
 
 }
 
-void Client::sendFakeDeviceStatus(message_t *request)
+void Client::sendFakeDeviceStatus(message_hdr_t *request)
 {
-  message_t response;
-  status_data_t status;
+  message_hdr_t response;
+  status_hdr_t status;
   status.sd_connected = 1;
-  status.total_space = 500000;
-  status.available_space = 500000;
+  status.total_space = 150;
+  status.available_space = 75;
   status.files_count = 8;
 
   QByteArray ba;
 
 
 
-  for(uint8_t i = 0; i < sizeof(status_data_t) ; i++)
+  for(uint8_t i = 0; i < sizeof(status_hdr_t) ; i++)
     ba.append( *( ( (uint8_t*) &status ) + i) );
 
 
@@ -544,14 +624,8 @@ void Client::sendFakeDeviceStatus(message_t *request)
   response.msg_id = request->msg_id;
   response.msg_type = request->msg_type;
   response.is_response = 1;
-  response.length = 3 + ba.size();
-  response.data = (uint8_t*) ba.data();
-  sendMessageResponse(&response);
-
-
-
-
-
+  response.data_length = ba.size();
+  sendMessageResponse(&response, (uint8_t*) ba.data());
 
 
 

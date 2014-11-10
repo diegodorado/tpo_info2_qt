@@ -152,9 +152,20 @@ typedef enum{
   BUFFER_ERROR_INVALID_MSG_LENGTH,
 } buffer_status_t;
 
+
+
+typedef enum {
+  PLAYBACK_COMMAND_PLAY,
+  PLAYBACK_COMMAND_PREVIOUS,
+  PLAYBACK_COMMAND_NEXT,
+  PLAYBACK_COMMAND_PAUSE,
+  PLAYBACK_COMMAND_STOP,
+  PLAYBACK_COMMAND_MAX_VALID_TYPE,
+} playback_command_type_t;
+
 typedef struct
 {
-  uint8_t  length;
+  uint8_t  data_length;
   uint8_t  msg_id;
   union{
     uint8_t  msg_full_type; //for serialization purposes
@@ -163,30 +174,28 @@ typedef struct
       uint8_t  msg_type:7;
     };
   };
-  uint8_t* data;
-} message_t;
+} message_hdr_t;
 
 typedef struct
 {
-  u_int32_t filesize;
-  u_int32_t sample_rate;
-  u_int32_t  chunks_count;
+  uint32_t filesize;
+  uint32_t sample_rate;
+  uint32_t  chunks_count;
   char     filename[8];
 } fileheader_data_t;
 
 typedef struct
 {
-  u_int32_t total_space;
-  u_int32_t available_space;
-  uint8_t  sd_connected;
   uint8_t  files_count;
-} status_data_t;
+  uint8_t  sd_connected;
+  uint8_t total_space;
+  uint8_t available_space;
+} status_hdr_t;
 
 typedef struct
 {
-  u_int32_t  chunk_id;
-  uint8_t*  data;
-} filechunk_data_t;
+  uint32_t  chunk_id;
+} filechunk_hdr_t;
 
 
 
@@ -194,11 +203,11 @@ typedef struct
 
 
 //utility functions:
-uint8_t messageGetChecksum(message_t* message);
+uint8_t messageGetChecksum(message_hdr_t* message, uint8_t* data);
 buffer_status_t messagesBufferProcess ( void);
 void messagesBufferPush ( uint8_t data );
 uint8_t* messagesBufferPop( void);
-
+uint8_t* messageData(message_hdr_t* message);
 
 
 

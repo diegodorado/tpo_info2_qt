@@ -54,7 +54,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
     connect(m_client, SIGNAL(handshakeResponse(bool)), this, SLOT(handleHandshakeResponse(bool)));
-    connect(m_client,SIGNAL(infoStatusResponse(status_data_t,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(status_data_t,QList<fileheader_data_t>*)));
+    connect(m_client,SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
+    connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
+    connect(m_client,SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
+    connect(m_client,SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
+
+
+
 
     ui->progressBar->setValue(0);
 
@@ -91,22 +97,26 @@ void MainWindow::onBytesWritten(qint64 bytes)
 
 void MainWindow::on_toolButton_Previous_clicked()
 {
-
+  log(QString("Enviando Comando de Reproduccion 'Previous' ..."));
+  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_PREVIOUS);
 }
 
 void MainWindow::on_toolButton_Pause_clicked()
 {
-
+  log(QString("Enviando Comando de Reproduccion 'Pause' ..."));
+  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_PAUSE);
 }
 
 void MainWindow::on_toolButton_Play_clicked()
 {
-
+  log(QString("Enviando Comando de Reproduccion 'Play' ..."));
+  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_PLAY);
 }
 
 void MainWindow::on_toolButton_Next_clicked()
 {
-
+  log(QString("Enviando Comando de Reproduccion 'Next' ..."));
+  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_NEXT);
 }
 
 void MainWindow::on_toolButton_Upload_clicked()
@@ -125,6 +135,7 @@ void MainWindow::on_toolButton_Upload_clicked()
 
 void MainWindow::on_pushButton_RefreshPortList_clicked()
 {
+  log(QString("Actualizando lista de puertos serie."));
   refreshSerialPortList();
 }
 
@@ -155,7 +166,7 @@ void MainWindow::refreshSerialPortList()
 {
   ui->comboBox_PortList->clear();
   foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
-      ui->comboBox_PortList->addItem(info.portName(), info.portName());
+    ui->comboBox_PortList->addItem(info.portName(), info.portName());
   }
 }
 
@@ -215,6 +226,7 @@ void MainWindow::log(QString msg)
   ui->plainTextEdit_Log->insertPlainText(msg);
   ui->plainTextEdit_Log->centerCursor();
 
+  //qDebug() << msg;
 }
 
 void MainWindow::handleError(QSerialPort::SerialPortError error)
@@ -232,7 +244,7 @@ void MainWindow::handleHandshakeResponse(bool success)
 {
   if(success)
   {
-    log(QString("Hanshake aceptado."));
+    log(QString("Handshake aceptado."));
     m_client->getDeviceStatus();
     log(QString("Solicitando estado del dispositivo..."));
   }
@@ -244,21 +256,52 @@ void MainWindow::handleHandshakeResponse(bool success)
 
 }
 
-void MainWindow::handleInfoStatusResponse(status_data_t status, QList<fileheader_data_t> * fileList)
+void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t> * fileList)
 {
-  log(QString("Estado del dispositivo recibida."));
-  ui->groupBox_DeviceControl->setEnabled(true);
-
-  log(QString(" -> SD conectada: %1.").arg(status.sd_connected));
-  log(QString(" -> Espacio disponible: %1.").arg(status.available_space));
-  log(QString(" -> Espacio Total: %1.").arg(status.total_space));
-  log(QString(" -> Cantidad de Audios: %1.").arg(status.files_count));
-
-
   ui->listWidget_DeviceAudios->clear();
-  foreach (const fileheader_data_t &file_header, *fileList) {
-      ui->listWidget_DeviceAudios->addItem(QString(file_header.filename));
+  ui->groupBox_DeviceControl->setEnabled(success);
+
+  if(success)
+  {
+    log(QString("Estado del dispositivo recibida."));
+    log(QString(" --> SD conectada: %1.").arg(status->sd_connected));
+    log(QString(" --> Espacio disponible: %1.").arg(status->available_space));
+    log(QString(" --> Espacio Total: %1.").arg(status->total_space));
+    log(QString(" --> Cantidad de Audios: %1.").arg(status->files_count));
+
+    foreach (const fileheader_data_t &file_header, *fileList) {
+        ui->listWidget_DeviceAudios->addItem(QString(file_header.filename));
+    }
+
   }
+  else
+  {
+    log(QString("Error al recibir el estado del dispositivo."));
+  }
+
+}
+
+void MainWindow::handleSendCommandResponse(bool success)
+{
+  if(success)
+  {
+    log(QString("Comando de Reproduccion Aceptado."));
+  }
+  else
+  {
+    log(QString("Comando de Reproduccion Rechazado."));
+  }
+
+}
+
+void MainWindow::handleBufferError(buffer_status_t bufferStatus)
+{
+  //log(QString("      * serial buffer error code: %1 * ").arg(bufferStatus));
+}
+
+void MainWindow::handleStatusChanged(buffer_status_t bufferStatus)
+{
+  //log(QString("      * serial buffer status changed: %1 * ").arg(bufferStatus));
 
 }
 

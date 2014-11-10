@@ -90,9 +90,16 @@ private slots:
 
   void on_pushButton_Connect_clicked();
 
-  void handleHandshakeResponse(bool);
+  void handleHandshakeResponse(bool success);
 
-  void handleInfoStatusResponse(status_data_t status, QList<fileheader_data_t>*fileList);
+  void handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t>*fileList);
+
+  void handleSendCommandResponse(bool success);
+
+  void handleBufferError(buffer_status_t bufferStatus);
+
+  void handleStatusChanged(buffer_status_t bufferStatus);
+
 
 private:
   Ui::MainWindow *ui;
