@@ -188,7 +188,7 @@
      </widget>
     </item>
     <item row="2" column="0">
-     <widget class="QGroupBox" name="groupBox_Log">
+     <widget class="QGroupBox" name="groupBox_AudioProgress">
       <property name="title">
        <string>Progreso de Envio de Audio</string>
       </property>

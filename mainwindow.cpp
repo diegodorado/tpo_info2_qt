@@ -48,6 +48,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->groupBox_DeviceControl->setEnabled(false);
+    ui->groupBox_AudioProgress->setEnabled(false);
 
     m_serialPort = new QSerialPort(this);
     m_client = new Client(this);
@@ -55,6 +56,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
     connect(m_client, SIGNAL(handshakeResponse(bool)), this, SLOT(handleHandshakeResponse(bool)));
     connect(m_client,SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
+
+    connect(m_client, SIGNAL(sendFileHeaderResponse(bool)), this, SLOT(handleSendFileHeaderResponse(bool)));
+    connect(m_client, SIGNAL(sendFileChunkResponse(bool,uint32_t, uint32_t)), this, SLOT(handleSendFileChunkResponse(bool,uint32_t, uint32_t)));
+
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
     connect(m_client,SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
     connect(m_client,SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
@@ -74,25 +79,6 @@ MainWindow::~MainWindow()
   delete m_serialPort;
   delete m_client;
 }
-  /*
-void MainWindow::onBytesWritten(qint64 bytes)
-{
-  Q_UNUSED(bytes);
-
-  if(m_file.bytesAvailable()>1024){
-    serial->write(m_file.read(1024));
-  }
-  float progress = 1.0f - float(m_file.bytesAvailable()) / float(m_file.size());
-  ui->progressBar->setValue((int) qRound(progress*100.0f));
-
-
-}
-
-*/
-
-
-
-
 
 
 void MainWindow::on_toolButton_Previous_clicked()
@@ -122,13 +108,14 @@ void MainWindow::on_toolButton_Next_clicked()
 void MainWindow::on_toolButton_Upload_clicked()
 {
 
-  //QString fileName = QFileDialog::getOpenFileName( this,tr("Open Image"), "", tr("WAV Files (*.wav)"));
-  //qDebug() << fileName;
+  QString filename = QFileDialog::getOpenFileName( this,"Seleccionar audio PCM 8bit mono", "", "Archivos WAV (*.wav)");
 
-  QString filename = "/home/diego/music/8bit.wav";
-  //QByteArray data = m_file.read(sizeof(wav_hdr_t));
-  //wav_hdr_t* wav_header = (wav_hdr_t*) data.data();
-  //qDebug() << wav_header->ChunkID;
+  if (filename!="")
+  {
+    m_client->sendFile(filename);
+    ui->groupBox_DeviceControl->setEnabled(false);
+    ui->groupBox_AudioProgress->setEnabled(true);
+  }
 
 
 }
@@ -225,8 +212,6 @@ void MainWindow::log(QString msg)
   msg.append("\n");
   ui->plainTextEdit_Log->insertPlainText(msg);
   ui->plainTextEdit_Log->centerCursor();
-
-  //qDebug() << msg;
 }
 
 void MainWindow::handleError(QSerialPort::SerialPortError error)
@@ -294,13 +279,62 @@ void MainWindow::handleSendCommandResponse(bool success)
 
 }
 
+void MainWindow::handleSendFileHeaderResponse(bool success)
+{
+  if(success)
+  {
+    log(QString("Envio de Audio Aceptado."));
+  }
+  else
+  {
+    log(QString("Envio de Audio Rechazado."));
+    ui->groupBox_DeviceControl->setEnabled(true);
+    ui->groupBox_AudioProgress->setEnabled(false);
+
+  }
+}
+
+void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount)
+{
+  if(success)
+  {
+    log(QString("Chunk %1 / %2 recibido con éxito.").arg(chunk_id).arg(chunksCount));
+
+    //fixme: not accurate at all!
+
+    float progress = float(chunk_id) / float(chunksCount);
+    ui->progressBar->setValue((int) qRound(progress*100.0f));
+
+    if(chunk_id==chunksCount-1)
+    {
+      //todo: send a confirmation request...
+      log(QString("Ultimo chunk de archivo recibido."));
+      m_client->getDeviceStatus();
+      log(QString("Solicitando estado del dispositivo..."));
+
+      //ui->groupBox_DeviceControl->setEnabled(true);
+      //ui->groupBox_AudioProgress->setEnabled(false);
+    }
+
+  }
+  else
+  {
+    log(QString("Fallo la recepción de chunk %1 .").arg(chunk_id));
+    ui->groupBox_DeviceControl->setEnabled(true);
+    ui->groupBox_AudioProgress->setEnabled(false);
+
+  }
+}
+
 void MainWindow::handleBufferError(buffer_status_t bufferStatus)
 {
+  Q_UNUSED(bufferStatus);
   //log(QString("      * serial buffer error code: %1 * ").arg(bufferStatus));
 }
 
 void MainWindow::handleStatusChanged(buffer_status_t bufferStatus)
 {
+  Q_UNUSED(bufferStatus);
   //log(QString("      * serial buffer status changed: %1 * ").arg(bufferStatus));
 
 }

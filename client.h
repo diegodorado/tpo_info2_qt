@@ -11,6 +11,7 @@
 #include <QDebug>
 #include <QtSerialPort/QSerialPort>
 #include "protocol.h"
+#include "wav.h"
 
 
 class Client : public QObject
@@ -61,9 +62,9 @@ private:
 
 
   bool m_fileHeaderSent;
-  uint64_t  m_fileToSendSize;
-  uint64_t  m_fileToSendChunksCount;
-  uint64_t  m_fileToSendChunkIndex;
+  uint64_t  m_totalDataSize;
+  uint64_t  m_chunksCount;
+  uint64_t  m_chunkIndex;
 
   bool trySetMessageId(message_hdr_t* message);
 
@@ -83,7 +84,11 @@ private:
 
   void sendFakeDeviceStatus(message_hdr_t *request);
 
+  void sendFakeChunkResponse(message_hdr_t *request);
+
   void processInfoStatusResponse(message_hdr_t *response);
+
+  void processSendFileChunkResponse(message_hdr_t *response);
 
 private slots:
   void readSerialData();
@@ -128,8 +133,9 @@ signals:
 
   void sendCommandResponse(bool success);
 
-  void sendFileResponse(bool success);
+  void sendFileHeaderResponse(bool success);
 
+  void sendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
 
 

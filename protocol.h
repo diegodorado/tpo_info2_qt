@@ -102,6 +102,9 @@
 #define START_OF_FRAME 0xFA
 #define END_OF_FRAME 0xCC
 #define RAW_RX_BUFFER_SIZE 1024
+#define FILECHUNK_SIZE  240 // 256 - sizeof(message_hdr_t) - sizeof(filechunk_hdr_t)
+
+
 
 
 /*
@@ -124,6 +127,8 @@ End of Multi Language Header
 
 
 /*START OF C/C++ COMMON CODE - (do not code aboce this line)*/
+
+
 
 
 typedef enum {
@@ -194,11 +199,9 @@ typedef struct
 
 typedef struct
 {
+  uint32_t  status; //0: ok, 1: error
   uint32_t  chunk_id;
 } filechunk_hdr_t;
-
-
-
 
 
 
@@ -222,6 +225,7 @@ Close c++ bracket for Multi Language Header
 /*
 End of Close c++ bracket for Multi Language Header
 */
+
 
 
 #endif // PROTOCOL_H

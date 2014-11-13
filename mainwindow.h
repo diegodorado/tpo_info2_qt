@@ -50,7 +50,6 @@
 #include <QMessageBox>
 #include <QFileDialog>
 
-#include "wav.h"
 #include "ui_mainwindow.h"
 #include "client.h"
 
@@ -95,6 +94,10 @@ private slots:
   void handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t>*fileList);
 
   void handleSendCommandResponse(bool success);
+
+  void handleSendFileHeaderResponse(bool success);
+
+  void handleSendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
   void handleBufferError(buffer_status_t bufferStatus);
 
