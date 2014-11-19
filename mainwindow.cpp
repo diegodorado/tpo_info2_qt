@@ -178,7 +178,7 @@ void MainWindow::openSerialPort()
   }
 
   m_serialPort->setPortName(ui->comboBox_PortList->currentData().toString());
-  m_serialPort->setBaudRate(QSerialPort::Baud9600);
+  m_serialPort->setBaudRate(QSerialPort::Baud38400);
   m_serialPort->setDataBits(QSerialPort::Data8);
   m_serialPort->setParity(QSerialPort::NoParity);
   m_serialPort->setStopBits(QSerialPort::OneStop);
@@ -255,7 +255,9 @@ void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QL
     log(QString(" --> Cantidad de Audios: %1.").arg(status->files_count));
 
     foreach (const fileheader_data_t &file_header, *fileList) {
-        ui->listWidget_DeviceAudios->addItem(QString(file_header.filename));
+      QString filename = QString::fromLatin1(file_header.filename,8);
+
+      ui->listWidget_DeviceAudios->addItem(filename);
     }
 
   }

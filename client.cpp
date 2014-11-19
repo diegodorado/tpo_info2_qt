@@ -171,14 +171,11 @@ void Client::sendMessage(message_hdr_t* message, uint8_t* data)
   d.append(message->msg_id);
   d.append(message->msg_full_type);
 
-  for(int i = 0; i < message->data_length ; i++){
+  for(int i = 0; i < message->data_length ; i++)
     d.append(*(data + i));
-  }
 
   d.append(checksum);
   d.append(END_OF_FRAME);
-
-
   m_serialPort->write(d);
   //qDebug() << "Mensaje enviado; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->data_length;
 }
@@ -701,7 +698,7 @@ void Client::sendFakeDeviceStatus(message_hdr_t *request)
     fileheader_data_t fd;
     fd.filesize = m_totalDataSize;
     fd.chunks_count = m_chunksCount;
-    strncpy(fd.filename,QString("AUDIO_%1").arg(i).toLatin1().data(),8);
+    strncpy(fd.filename,QString("AUDIO_0%1").arg(i).toLatin1().data(),8);
 
     for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)
       ba.append( *( ( (uint8_t*) &fd ) + j) );
