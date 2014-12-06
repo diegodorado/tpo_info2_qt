@@ -131,19 +131,11 @@ void Client::setSerialPort(QSerialPort *serialPort)
 
 }
 
-void Client::sendFile(QString filename)
+void Client::sendFile(QFile *file)
 {
-  if(m_audioFile.isOpen())
-  {
-    qDebug() << "Close previous unclosed file. ";
-    m_audioFile.close();
-  }
-
-  m_audioFile.setFileName(filename);
-  m_audioFile.open(QIODevice::ReadOnly);
-
+  m_audioFile = file;
   m_fileHeaderSent = false;
-  m_fileSendTimer->start(10); //fake some delay
+  m_fileSendTimer->start(1000); //fake some delay
 }
 
 bool Client::trySetMessageId(message_hdr_t *message)
@@ -355,105 +347,21 @@ void Client::processFileSend()
       //message queue is full... wait for next iteration
       return;
 
-    // check if file format is valid
-    wav_hdr_t wav_hdr;
-    uint64_t dataSize = m_audioFile.read((char*)&wav_hdr, sizeof(wav_hdr_t));
-
-    if(dataSize != sizeof(wav_hdr_t))
-    {
-      qDebug() << "File is too short to read.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.validChunkID())
-    {
-      qDebug() << "Not valid CHUNK_ID.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.validFormat())
-    {
-      qDebug() << "Not valid format.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.validSubchunk1ID())
-    {
-      qDebug() << "Not valid Subchunk1ID.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.validSubchunk2ID())
-    {
-      qDebug() << "Not valid Subchunk2ID.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.isPCM())
-    {
-      qDebug() << "File is not PCM.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.is8bit())
-    {
-      qDebug() << "File is not 8bit.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(!wav_hdr.isMono())
-    {
-      qDebug() << "File is not Mono.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(m_audioFile.size() != wav_hdr.fileSize())
-    {
-      qDebug() << "File size mismatch.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-    if(wav_hdr.dataSize() + sizeof(wav_hdr_t) > wav_hdr.fileSize())
-    {
-      qDebug() << "Wrong datasize.";
-      m_fileSendTimer->stop();
-      emit sendFileHeaderResponse(false);
-      return;
-    }
-
-
     fileheader_data_t fhdr;
+    QFileInfo fileInfo(m_audioFile->fileName());
 
-    QFileInfo fileInfo(m_audioFile.fileName());
+    m_totalDataSize =  m_audioFile->size();
 
-    m_totalDataSize = wav_hdr.dataSize();
     m_chunksCount = m_totalDataSize / FILECHUNK_SIZE;
     if((m_totalDataSize % FILECHUNK_SIZE) > 0)
       m_chunksCount ++;
+
     m_chunkIndex = 0;
 
 
     fhdr.filesize = m_totalDataSize;
     fhdr.chunks_count = m_chunksCount;
-    fhdr.sample_rate = wav_hdr.SampleRate;
+    fhdr.sample_rate = 0; // 0 is 8000
     strncpy(fhdr.filename,fileInfo.fileName().toUpper().toLatin1().data(),8);
 
     request.data_length = sizeof(fhdr);
@@ -473,10 +381,10 @@ void Client::processFileSend()
       return;
 
 
-    m_audioFile.seek( sizeof(wav_hdr_t) + FILECHUNK_SIZE * m_chunkIndex);
+    m_audioFile->seek( FILECHUNK_SIZE * m_chunkIndex);
 
     char *buf = new char[FILECHUNK_SIZE];
-    qint64 dataSize = m_audioFile.read(buf, FILECHUNK_SIZE);
+    qint64 dataSize = m_audioFile->read(buf, FILECHUNK_SIZE);
 
     QByteArray ba;
     ba.append((char*) &m_chunkIndex,sizeof(m_chunkIndex));
@@ -493,7 +401,7 @@ void Client::processFileSend()
     if(++m_chunkIndex>=m_chunksCount)
     {
       m_fileSendTimer->stop();
-      m_audioFile.close();
+      m_audioFile->close();
       //todo: close file on error
     }
 

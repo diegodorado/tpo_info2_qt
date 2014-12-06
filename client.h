@@ -11,7 +11,6 @@
 #include <QDebug>
 #include <QtSerialPort/QSerialPort>
 #include "protocol.h"
-#include "wav.h"
 
 
 class Client : public QObject
@@ -37,7 +36,7 @@ public:
 
   void getDeviceStatus();
 
-  void sendFile(QString filename);
+  void sendFile(QFile* file);
 
 private:
   const int RESPONSE_TIMEOUT_MS = 5000;
@@ -51,7 +50,7 @@ private:
   QTimer* m_sendFileResponseTimer;
 
 
-  QFile m_audioFile;
+  QFile* m_audioFile;
   QSerialPort* m_serialPort;
   QBitArray m_pendingMessagesMask;
   QList<message_hdr_t*>* m_messagesQueue;

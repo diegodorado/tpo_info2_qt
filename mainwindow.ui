@@ -153,6 +153,16 @@
           </spacer>
          </item>
          <item>
+          <widget class="QLabel" name="label_SampleRate">
+           <property name="text">
+            <string>SampleRate</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_SampleRate"/>
+         </item>
+         <item>
           <widget class="QToolButton" name="toolButton_Upload">
            <property name="toolTip">
             <string>Transferir un archivo de Audio al dispositivo</string>
