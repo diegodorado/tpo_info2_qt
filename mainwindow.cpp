@@ -54,6 +54,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_serialPort = new QSerialPort(this);
     m_client = new Client(this);
+    m_ffmpegProcess = new QProcess(this);
 
     connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
     connect(m_client, SIGNAL(handshakeResponse(bool)), this, SLOT(handleHandshakeResponse(bool)));
@@ -61,10 +62,20 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(m_client, SIGNAL(sendFileHeaderResponse(bool)), this, SLOT(handleSendFileHeaderResponse(bool)));
     connect(m_client, SIGNAL(sendFileChunkResponse(bool,uint32_t, uint32_t)), this, SLOT(handleSendFileChunkResponse(bool,uint32_t, uint32_t)));
+    connect(m_client, SIGNAL(sendFileTimeout()), this, SLOT(handleSendFileTimeout()));
 
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
     connect(m_client,SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
     connect(m_client,SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
+
+
+    connect(m_ffmpegProcess,SIGNAL(started()),SLOT(handleFfmpegProcessStarted()));
+    connect(m_ffmpegProcess,SIGNAL(error(QProcess::ProcessError )),SLOT(handleFfmpegProcessError(QProcess::ProcessError )));
+    connect(m_ffmpegProcess,SIGNAL(finished(int , QProcess::ExitStatus )),SLOT(handleFfmpegProcessFinished(int , QProcess::ExitStatus )));
+    connect(m_ffmpegProcess,SIGNAL(readyRead()),SLOT(handleFfmpegProcessReadyRead()));
+    connect(m_ffmpegProcess,SIGNAL(readyReadStandardError()),SLOT(handleFfmpegProcessReadyRead()));
+    connect(m_ffmpegProcess,SIGNAL(readyReadStandardOutput()),SLOT(handleFfmpegProcessReadyRead()));
+
 
 
     ui->progressBar->setValue(0);
@@ -111,60 +122,44 @@ void MainWindow::on_toolButton_Upload_clicked()
 
   QString program = "ffmpeg";
   QStringList arguments;
-  QProcess ffmpeg;
   QString filename;
-  QString shortFilename;
-  int sampleRate;
 
   filename = QFileDialog::getOpenFileName( this,"Seleccionar Archivo de Audio", "", "Archivo de Audio (*.wav *.mp3)");
   QFileInfo fileInfo(filename);
-  shortFilename = fileInfo.fileName().toUpper();
-
-  sampleRate = ui->comboBox_SampleRate->currentData().toInt();
+  m_shortFilename = fileInfo.fileName().toUpper();
   m_tmpFile = new QTemporaryFile(this);
 
+  if (filename != "")
+  {
 
-  if (m_tmpFile->open()) {
-    // this is only to get a valid tmp filename, so i close it
-    //m_tmpFile->close();
 
-    // contruye el comando: ffmpeg -i source -ac 1 -sample_fmt u8 -acodec pcm_u8 -f u8 -y -ar 8000 /tmp.file
 
-    arguments << "-i" << filename;
-    arguments << "-ac" << "1"; // audo channels: mono
-    arguments << "-sample_fmt" << "u8"; //8 bit sample depth
-    arguments << "-acodec" << "pcm_u8"; // audio codec: pcm 8 bit
-    arguments << "-f" << "u8"; // format is PCM... headless WAV
-    arguments << "-y"; //overwrite if file exists... it will exists
-    arguments << "-ar" <<  QString::number(sampleRate); // audio sample rate
-    arguments << m_tmpFile->fileName();
+    if (m_tmpFile->open()) {
+      // this is only to get a valid tmp filename, so i close it
+      //m_tmpFile->close();
 
-    log(QString("Ejecutando: %1 %2").arg(program).arg(arguments.join(" ")));
-    ffmpeg.start(program, arguments);
+      // contruye el comando: ffmpeg -i source -ac 1 -sample_fmt u8 -acodec pcm_u8 -f u8 -y -ar 8000 /tmp.file
 
-    log(QString("waitForStarted ..."));
-    ffmpeg.waitForStarted();
-    log(QString("Started."));
-    log(QString("waitForFinished ..."));
+      arguments << "-i" << filename;
+      arguments << "-ac" << "1"; // audo channels: mono
+      arguments << "-sample_fmt" << "u8"; //8 bit sample depth
+      arguments << "-acodec" << "pcm_u8"; // audio codec: pcm 8 bit
+      arguments << "-f" << "u8"; // format is PCM... headless WAV
+      arguments << "-y"; //overwrite if file exists... it will exists
+      arguments << "-ar" <<  ui->comboBox_SampleRate->currentData().toString(); // audio sample rate
+      arguments << m_tmpFile->fileName();
 
-    ffmpeg.waitForFinished();
-    log(QString("Finished."));
+      log(QString("Ejecutando: %1 %2").arg(program).arg(arguments.join(" ")));
+      m_ffmpegProcess->setProcessChannelMode(QProcess::MergedChannels);
+      m_ffmpegProcess->start(program, arguments);
+      log(QString("waitForStarted ..."));
 
-    log(QString("StandardError:"));
-    log(QString("=================="));
-    log(ffmpeg.readAllStandardError());
-    log(QString("StandardOutput:"));
-    log(QString("=================="));
-    log(ffmpeg.readAllStandardOutput());
-    log(QString("=================="));
 
-    log(QString("Enviando audio..."));
-    m_client->sendFile(m_tmpFile, sampleRate, shortFilename);
+
+
+    }
 
   }
-
-
-
 }
 
 void MainWindow::on_pushButton_RefreshPortList_clicked()
@@ -238,7 +233,9 @@ void MainWindow::openSerialPort()
   }
 
   m_serialPort->setPortName(ui->comboBox_PortList->currentData().toString());
-  m_serialPort->setBaudRate(QSerialPort::Baud38400);
+  //m_serialPort->setBaudRate(QSerialPort::Baud38400);
+  m_serialPort->setBaudRate(QSerialPort::Baud57600);
+  //m_serialPort->setBaudRate(QSerialPort::Baud115200);
   m_serialPort->setDataBits(QSerialPort::Data8);
   m_serialPort->setParity(QSerialPort::NoParity);
   m_serialPort->setStopBits(QSerialPort::OneStop);
@@ -267,9 +264,10 @@ void MainWindow::closeSerialPort()
   ui->statusBar->showMessage(tr("No Conectado"));
 }
 
-void MainWindow::log(QString msg)
+void MainWindow::log(QString msg, bool newLine )
 {
-  msg.append("\n");
+  if(newLine)
+    msg.append("\n");
   ui->plainTextEdit_Log->insertPlainText(msg);
   ui->plainTextEdit_Log->centerCursor();
 }
@@ -316,7 +314,6 @@ void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QL
 
     foreach (const fileheader_data_t &file_header, *fileList) {
       QString filename = QString::fromLatin1(file_header.filename,8);
-
       ui->listWidget_DeviceAudios->addItem(filename);
     }
 
@@ -374,8 +371,8 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
       m_client->getDeviceStatus();
       log(QString("Solicitando estado del dispositivo..."));
 
-      //ui->groupBox_DeviceControl->setEnabled(true);
-      //ui->groupBox_AudioProgress->setEnabled(false);
+      ui->groupBox_DeviceControl->setEnabled(true);
+      ui->groupBox_AudioProgress->setEnabled(false);
     }
 
   }
@@ -386,6 +383,13 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
     ui->groupBox_AudioProgress->setEnabled(false);
 
   }
+}
+
+void MainWindow::handleSendFileTimeout()
+{
+  ui->groupBox_DeviceControl->setEnabled(true);
+  ui->groupBox_AudioProgress->setEnabled(false);
+  log(QString("Tiempo de espera de transmision agotado."));
 }
 
 void MainWindow::handleBufferError(buffer_status_t bufferStatus)
@@ -399,6 +403,40 @@ void MainWindow::handleStatusChanged(buffer_status_t bufferStatus)
   Q_UNUSED(bufferStatus);
   //log(QString("      * serial buffer status changed: %1 * ").arg(bufferStatus));
 
+}
+
+void MainWindow::handleFfmpegProcessStarted()
+{
+  log(QString("ffmpeg process started."));
+
+}
+
+void MainWindow::handleFfmpegProcessError(QProcess::ProcessError error)
+{
+  log(QString("ffmpeg Process Error: %1").arg(error));
+
+}
+
+void MainWindow::handleFfmpegProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
+{
+  log(QString("ffmpeg Process Finished. Exit code: %1 . Exit status: %2").arg(exitCode).arg(exitStatus));
+  if(exitCode==0 && exitStatus==0)
+  {
+    log(QString("Conversion finalizada correctamente. Enviando audio..."));
+    m_client->sendFile(m_tmpFile, ui->comboBox_SampleRate->currentData().toInt(), m_shortFilename);
+  }
+  else
+  {
+    log(QString("Conversion finalizada con errores."));
+  }
+
+}
+
+
+
+void MainWindow::handleFfmpegProcessReadyRead()
+{
+  log(m_ffmpegProcess->readAll(), false);
 }
 
 

@@ -145,6 +145,7 @@ void Client::sendFile(QFile *file, uint32_t sampleRate, QString filename)
 
   m_chunkIndex = 0;
   m_fileHeaderSent = false;
+  m_fileHeaderAcepted = false;
   m_fileSendTimer->start(10); //fake some delay
 }
 
@@ -179,7 +180,6 @@ void Client::sendMessage(message_hdr_t* message, uint8_t* data)
   d.append(checksum);
   d.append(END_OF_FRAME);
   m_serialPort->write(d);
-  //qDebug() << "Mensaje enviado; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->data_length;
 }
 
 void Client::sendMessageRequest(message_hdr_t* message, uint8_t* data)
@@ -261,10 +261,6 @@ void Client::readMessageFromBuffer()
     free(message);
     return;
   }
-
-
-
-  //qDebug() << "Mensaje recibido; id: " << message->msg_id << "type: " << message->msg_type << "resp: " << message->is_response << "length: " << message->data_length;
 
 
 
@@ -366,7 +362,7 @@ void Client::processFileSend()
     m_fileHeaderSent = true;
 
   }
-  else
+  else if(m_fileHeaderAcepted)
   {
 
     m_audioFile->seek( FILECHUNK_SIZE * m_chunkIndex);
@@ -395,6 +391,8 @@ void Client::processFileSend()
 
   }
 
+  //2 seconds maximum time for any request to be responded
+  m_sendFileResponseTimer->start(2000);
 
 
 
@@ -416,9 +414,21 @@ void Client::processMessageResponse(message_hdr_t* message)
       emit sendCommandResponse( * messageData(message) == STATUS_OK );
       break;
     case MESSAGE_FILEHEADER:
-      emit sendFileHeaderResponse( * messageData(message) == STATUS_OK );
+      m_sendFileResponseTimer->stop();
+      if(* messageData(message) == STATUS_OK )
+      {
+        m_fileHeaderAcepted = true;
+        emit sendFileHeaderResponse(true);
+      }
+      else
+      {
+        emit sendFileHeaderResponse(false );
+      }
+
+
       break;
     case MESSAGE_FILECHUNK:
+      m_sendFileResponseTimer->stop();
       processSendFileChunkResponse(message);
       break;
   }
@@ -510,7 +520,7 @@ void Client::sendCommandResponseTimeout()
 void Client::sendFileResponseTimeout()
 {
   m_sendFileResponseTimer->stop();
-  //emit sendFileeResponse(false);
+  emit sendFileTimeout();
 }
 
 

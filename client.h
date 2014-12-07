@@ -61,6 +61,7 @@ private:
 
 
   bool m_fileHeaderSent;
+  bool m_fileHeaderAcepted;
   fileheader_data_t m_fileHeader;
   uint32_t  m_chunkIndex;
 
@@ -134,6 +135,8 @@ signals:
   void sendFileHeaderResponse(bool success);
 
   void sendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
+
+  void sendFileTimeout();
 
 
 
