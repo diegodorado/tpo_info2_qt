@@ -54,13 +54,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_serialPort = new QSerialPort(this);
     m_client = new Client(this);
-    m_decoder = new QAudioDecoder(this);
-
-    connect(m_decoder, SIGNAL(bufferReady()), this, SLOT(handleDecoderBufferReady()));
-    connect(m_decoder, SIGNAL(error(QAudioDecoder::Error)), this, SLOT(handleDecoderError(QAudioDecoder::Error )));
-    connect(m_decoder, SIGNAL(finished()), this, SLOT(handleDecoderFinished()));
-    connect(m_decoder, SIGNAL(positionChanged(qint64 )), this, SLOT(handleDecoderPositionChanged(qint64)));
-
 
     connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
     connect(m_client, SIGNAL(handshakeResponse(bool)), this, SLOT(handleHandshakeResponse(bool)));
@@ -72,8 +65,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
     connect(m_client,SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
     connect(m_client,SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
-
-
 
 
     ui->progressBar->setValue(0);
@@ -118,22 +109,26 @@ void MainWindow::on_toolButton_Next_clicked()
 void MainWindow::on_toolButton_Upload_clicked()
 {
 
+  QString program = "ffmpeg";
+  QStringList arguments;
+  QProcess ffmpeg;
+  QString filename;
+  QString shortFilename;
+  int sampleRate;
 
-  QString filename = QFileDialog::getOpenFileName( this,"Seleccionar audio PCM 8bit mono", "", "Archivos WAV (*.wav)");
+  filename = QFileDialog::getOpenFileName( this,"Seleccionar Archivo de Audio", "", "Archivo de Audio (*.wav *.mp3)");
+  QFileInfo fileInfo(filename);
+  shortFilename = fileInfo.fileName().toUpper();
 
-  m_decoder->setSourceFilename(filename);
+  sampleRate = ui->comboBox_SampleRate->currentData().toInt();
   m_tmpFile = new QTemporaryFile(this);
 
 
   if (m_tmpFile->open()) {
     // this is only to get a valid tmp filename, so i close it
-    m_tmpFile->close();
-
-
+    //m_tmpFile->close();
 
     // contruye el comando: ffmpeg -i source -ac 1 -sample_fmt u8 -acodec pcm_u8 -f u8 -y -ar 8000 /tmp.file
-    QString program = "ffmpeg";
-    QStringList arguments;
 
     arguments << "-i" << filename;
     arguments << "-ac" << "1"; // audo channels: mono
@@ -141,12 +136,11 @@ void MainWindow::on_toolButton_Upload_clicked()
     arguments << "-acodec" << "pcm_u8"; // audio codec: pcm 8 bit
     arguments << "-f" << "u8"; // format is PCM... headless WAV
     arguments << "-y"; //overwrite if file exists... it will exists
-    arguments << "-ar" <<  QString::number(8000); // audio sample rate
+    arguments << "-ar" <<  QString::number(sampleRate); // audio sample rate
     arguments << m_tmpFile->fileName();
 
-    QProcess ffmpeg;
+    log(QString("Ejecutando: %1 %2").arg(program).arg(arguments.join(" ")));
     ffmpeg.start(program, arguments);
-    log(QString("Ejecutando: %1").arg(arguments.join(" ")));
 
     log(QString("waitForStarted ..."));
     ffmpeg.waitForStarted();
@@ -164,12 +158,9 @@ void MainWindow::on_toolButton_Upload_clicked()
     log(ffmpeg.readAllStandardOutput());
     log(QString("=================="));
 
+    log(QString("Enviando audio..."));
+    m_client->sendFile(m_tmpFile, sampleRate, shortFilename);
 
-    //ui->groupBox_AudioProgress->setEnabled(true);
-    //ui->groupBox_DeviceControl->setEnabled(false);
-    //log(QString("Decodificand audio..."));
-    //log(QString("Guardando en archivo temporal: %1").arg(m_tmpFile->fileName()));
-    //m_decoder->start();
   }
 
 
@@ -224,24 +215,7 @@ void MainWindow::loadSampleRateList()
 }
 
 
-void MainWindow::on_comboBox_SampleRate_currentIndexChanged(int index)
-{
-  Q_UNUSED(index);
-  setDecoderSampleRate( ui->comboBox_SampleRate->currentData().toInt());
-}
 
-void MainWindow::setDecoderSampleRate(int sampleRate)
-{
-  QAudioFormat desiredFormat;
-  desiredFormat.setChannelCount(1);
-  desiredFormat.setCodec("audio/x-raw");
-  desiredFormat.setSampleType(QAudioFormat::UnSignedInt);
-  desiredFormat.setSampleRate(sampleRate);
-  desiredFormat.setSampleSize(8);
-
-  m_decoder->setAudioFormat(desiredFormat);
-  log(QString("Frecuencia de Muestreo del decodificador: %1").arg(sampleRate));
-}
 
 void MainWindow::updateConnectButtonLabel()
 {
@@ -424,35 +398,6 @@ void MainWindow::handleStatusChanged(buffer_status_t bufferStatus)
 {
   Q_UNUSED(bufferStatus);
   //log(QString("      * serial buffer status changed: %1 * ").arg(bufferStatus));
-
-}
-
-void MainWindow::handleDecoderBufferReady()
-{
-  QAudioBuffer buffer = m_decoder->read();
-  const char* data = buffer.constData<char>();
-  m_tmpFile->write(data,buffer.byteCount());
-
-}
-
-void MainWindow::handleDecoderError(QAudioDecoder::Error error)
-{
-  log(QString("Error al decodificar Audio: %1").arg(error));
-}
-
-void MainWindow::handleDecoderFinished()
-{
-  log(QString("Decodificacion finalizada"));
-  log(QString("Enviando archivo."));
-  m_client->sendFile(m_tmpFile);
-
-}
-
-void MainWindow::handleDecoderPositionChanged(qint64 position)
-{
-  //fixme: not accurate at all!
-  float progress = float(position) / float(m_decoder->duration());
-  ui->progressBar->setValue((int) qRound(progress*100.0f));
 
 }
 

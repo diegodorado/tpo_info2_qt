@@ -36,7 +36,7 @@ public:
 
   void getDeviceStatus();
 
-  void sendFile(QFile* file);
+  void sendFile(QFile *file, uint32_t sampleRate, QString filename);
 
 private:
   const int RESPONSE_TIMEOUT_MS = 5000;
@@ -61,9 +61,8 @@ private:
 
 
   bool m_fileHeaderSent;
-  uint64_t  m_totalDataSize;
-  uint64_t  m_chunksCount;
-  uint64_t  m_chunkIndex;
+  fileheader_data_t m_fileHeader;
+  uint32_t  m_chunkIndex;
 
   bool trySetMessageId(message_hdr_t* message);
 

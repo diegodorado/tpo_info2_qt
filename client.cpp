@@ -3,7 +3,7 @@
 Client::Client(QObject *parent) :
   QObject(parent)
 {
-  m_pendingMessagesMask.resize(0xFF);
+  m_pendingMessagesMask.resize(32); // no more than 32 concurrent unfinished messages
   m_pendingMessagesMask.fill(false);
   m_messagesQueue = new QList<message_hdr_t*>();
   m_serialPort = NULL;
@@ -131,11 +131,21 @@ void Client::setSerialPort(QSerialPort *serialPort)
 
 }
 
-void Client::sendFile(QFile *file)
+void Client::sendFile(QFile *file, uint32_t sampleRate, QString filename)
 {
   m_audioFile = file;
+
+  m_fileHeader.sample_rate = sampleRate;
+  m_fileHeader.filesize =  m_audioFile->size();
+  strncpy(m_fileHeader.filename, filename.toLatin1().data() ,8);
+
+  m_fileHeader.chunks_count = m_fileHeader.filesize / FILECHUNK_SIZE;
+  if((m_fileHeader.filesize % FILECHUNK_SIZE) > 0)
+    m_fileHeader.chunks_count++;
+
+  m_chunkIndex = 0;
   m_fileHeaderSent = false;
-  m_fileSendTimer->start(1000); //fake some delay
+  m_fileSendTimer->start(10); //fake some delay
 }
 
 bool Client::trySetMessageId(message_hdr_t *message)
@@ -339,47 +349,25 @@ void Client::onBytesWritten(qint64 bytes)
 void Client::processFileSend()
 {
 
+  message_hdr_t request;
+  if (!trySetMessageId(&request))
+    //message queue is full... wait for next iteration
+    return;
+
+
   if(!m_fileHeaderSent)
   {
 
-    message_hdr_t request;
-    if (!trySetMessageId(&request))
-      //message queue is full... wait for next iteration
-      return;
-
-    fileheader_data_t fhdr;
-    QFileInfo fileInfo(m_audioFile->fileName());
-
-    m_totalDataSize =  m_audioFile->size();
-
-    m_chunksCount = m_totalDataSize / FILECHUNK_SIZE;
-    if((m_totalDataSize % FILECHUNK_SIZE) > 0)
-      m_chunksCount ++;
-
-    m_chunkIndex = 0;
-
-
-    fhdr.filesize = m_totalDataSize;
-    fhdr.chunks_count = m_chunksCount;
-    fhdr.sample_rate = 0; // 0 is 8000
-    strncpy(fhdr.filename,fileInfo.fileName().toUpper().toLatin1().data(),8);
-
-    request.data_length = sizeof(fhdr);
+    request.data_length = sizeof(m_fileHeader);
     request.is_response = 0;
     request.msg_type = MESSAGE_FILEHEADER;
     //cast data struct as uint8_t pointer
-    sendMessageRequest(&request, (uint8_t*) &fhdr);
+    sendMessageRequest(&request, (uint8_t*) &m_fileHeader);
     m_fileHeaderSent = true;
 
   }
   else
   {
-
-    message_hdr_t request;
-    if (!trySetMessageId(&request))
-      //message queue is full... wait for next iteration
-      return;
-
 
     m_audioFile->seek( FILECHUNK_SIZE * m_chunkIndex);
 
@@ -398,7 +386,7 @@ void Client::processFileSend()
     sendMessageRequest(&request, (uint8_t*) ba.data());
 
 
-    if(++m_chunkIndex>=m_chunksCount)
+    if(++m_chunkIndex>=m_fileHeader.chunks_count )
     {
       m_fileSendTimer->stop();
       m_audioFile->close();
@@ -496,7 +484,7 @@ void Client::processSendFileChunkResponse(message_hdr_t* response)
 {
   filechunk_hdr_t data;
   data = *(filechunk_hdr_t*) messageData(response);
-  emit sendFileChunkResponse((data.status ==0),data.chunk_id, m_chunksCount);
+  emit sendFileChunkResponse((data.status ==0),data.chunk_id, m_fileHeader.chunks_count);
 
 }
 
@@ -604,8 +592,8 @@ void Client::sendFakeDeviceStatus(message_hdr_t *request)
   for(int i = 0; i<status.files_count;i++)
   {
     fileheader_data_t fd;
-    fd.filesize = m_totalDataSize;
-    fd.chunks_count = m_chunksCount;
+    fd.filesize = 0;
+    fd.chunks_count = 0;
     strncpy(fd.filename,QString("AUDIO_0%1").arg(i).toLatin1().data(),8);
 
     for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)

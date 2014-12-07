@@ -50,8 +50,6 @@
 #include <QMessageBox>
 #include <QFileDialog>
 
-#include <QAudioFormat>
-#include <QAudioDecoder>
 #include <QTemporaryFile>
 #include <QProcess>
 
@@ -108,22 +106,11 @@ private slots:
 
   void handleStatusChanged(buffer_status_t bufferStatus);
 
-  void handleDecoderBufferReady();
-
-  void handleDecoderError(QAudioDecoder::Error error);
-
-  void handleDecoderFinished();
-
-  void handleDecoderPositionChanged(qint64 position);
-
-
-  void on_comboBox_SampleRate_currentIndexChanged(int index);
 
 private:
   Ui::MainWindow *ui;
   QSerialPort *m_serialPort;
   Client *m_client;
-  QAudioDecoder *m_decoder;
   QTemporaryFile *m_tmpFile;
 
   void openSerialPort();
@@ -131,8 +118,6 @@ private:
   void refreshSerialPortList();
 
   void loadSampleRateList();
-
-  void setDecoderSampleRate(int sampleRate);
 
   void updateConnectButtonLabel();
 
