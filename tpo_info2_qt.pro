@@ -12,7 +12,6 @@ SOURCES += \
 
 HEADERS += \
     mainwindow.h \
-    wav.h \
     protocol.h \
     client.h
 

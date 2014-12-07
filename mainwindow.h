@@ -50,6 +50,9 @@
 #include <QMessageBox>
 #include <QFileDialog>
 
+#include <QTemporaryFile>
+#include <QProcess>
+
 #include "ui_mainwindow.h"
 #include "client.h"
 
@@ -99,26 +102,41 @@ private slots:
 
   void handleSendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
+  void handleSendFileTimeout();
+
   void handleBufferError(buffer_status_t bufferStatus);
 
   void handleStatusChanged(buffer_status_t bufferStatus);
+
+
+  void 	handleFfmpegProcessStarted();
+
+  void 	handleFfmpegProcessError(QProcess::ProcessError error);
+
+  void 	handleFfmpegProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+
+  void 	handleFfmpegProcessReadyRead();
 
 
 private:
   Ui::MainWindow *ui;
   QSerialPort *m_serialPort;
   Client *m_client;
-
+  QTemporaryFile *m_tmpFile;
+  QProcess *m_ffmpegProcess;
+  QString m_shortFilename;
 
   void openSerialPort();
 
   void refreshSerialPortList();
 
+  void loadSampleRateList();
+
   void updateConnectButtonLabel();
 
   void closeSerialPort();
 
-  void log(QString msg);
+  void log(QString msg, bool newLine=true);
 
 };
 

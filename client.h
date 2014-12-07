@@ -11,7 +11,6 @@
 #include <QDebug>
 #include <QtSerialPort/QSerialPort>
 #include "protocol.h"
-#include "wav.h"
 
 
 class Client : public QObject
@@ -37,7 +36,7 @@ public:
 
   void getDeviceStatus();
 
-  void sendFile(QString filename);
+  void sendFile(QFile *file, uint32_t sampleRate, QString filename);
 
 private:
   const int RESPONSE_TIMEOUT_MS = 5000;
@@ -51,7 +50,7 @@ private:
   QTimer* m_sendFileResponseTimer;
 
 
-  QFile m_audioFile;
+  QFile* m_audioFile;
   QSerialPort* m_serialPort;
   QBitArray m_pendingMessagesMask;
   QList<message_hdr_t*>* m_messagesQueue;
@@ -62,9 +61,9 @@ private:
 
 
   bool m_fileHeaderSent;
-  uint64_t  m_totalDataSize;
-  uint64_t  m_chunksCount;
-  uint64_t  m_chunkIndex;
+  bool m_fileHeaderAcepted;
+  fileheader_data_t m_fileHeader;
+  uint32_t  m_chunkIndex;
 
   bool trySetMessageId(message_hdr_t* message);
 
@@ -136,6 +135,8 @@ signals:
   void sendFileHeaderResponse(bool success);
 
   void sendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
+
+  void sendFileTimeout();
 
 
 
