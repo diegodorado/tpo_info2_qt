@@ -28,7 +28,8 @@ public:
     MSG_ID_IN_USE
   };
 
-  void setSerialPort(QSerialPort* serialPort);
+
+  QSerialPort *getSerialPort(void);
 
   void sendHandshakeRequest();
 
@@ -39,12 +40,10 @@ public:
   void sendFile(QFile *file, uint32_t sampleRate, QString filename);
 
 private:
-  const int RESPONSE_TIMEOUT_MS = 5000;
+  const int KEEP_ALIVE_FREQUENCY = 2000;
   QTimer* m_queueTimer;
   QTimer* m_fileSendTimer;
-
-
-  QTimer* m_handshakeResponseTimer;
+  QTimer* m_keepAliveTimer;
   QTimer* m_infoStatusResponseTimer;
   QTimer* m_sendCommandResponseTimer;
   QTimer* m_sendFileResponseTimer;
@@ -59,13 +58,14 @@ private:
   status_hdr_t m_deviceStatus;
   QList<fileheader_data_t>* m_fileList;
 
-
+  bool m_deviceConnected;
+  bool m_keepAliveResponded;
   bool m_fileHeaderSent;
   bool m_fileHeaderAcepted;
   fileheader_data_t m_fileHeader;
   uint32_t  m_chunkIndex;
 
-  bool trySetMessageId(message_hdr_t* message);
+  bool canSendMessage();
 
   void sendMessage(message_hdr_t* message, uint8_t* data);
 
@@ -94,19 +94,15 @@ private slots:
 
   void handleSerialError(QSerialPort::SerialPortError bufferError);
 
-  void onBytesWritten(qint64 bytes);
-
   void readMessageFromBuffer();
 
   void handleMessageError(message_error_t messageError);
 
   void handleBufferError(buffer_status_t bufferError);
 
-  void handleBufferStatusChanged(buffer_status_t status);
-
   void processFileSend();
 
-  void handshakeResponseTimeout();
+  void keepAlive();
 
   void infoStatusResponseTimeout();
 
@@ -126,7 +122,7 @@ signals:
 
   void messageError(message_error_t);
 
-  void handshakeResponse(bool success);
+  void deviceStatusChanged(bool connected);
 
   void infoStatusResponse(bool success, status_hdr_t* deviceStatus,  QList<fileheader_data_t>* fileList);
 

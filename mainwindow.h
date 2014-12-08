@@ -76,7 +76,6 @@ public:
 
 
 private slots:
-  void handleError(QSerialPort::SerialPortError error);
 
   void on_toolButton_Previous_clicked();
 
@@ -92,7 +91,7 @@ private slots:
 
   void on_pushButton_Connect_clicked();
 
-  void handleHandshakeResponse(bool success);
+  void handleDeviceStatusChanged(bool connected);
 
   void handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t>*fileList);
 
@@ -108,7 +107,6 @@ private slots:
 
   void handleStatusChanged(buffer_status_t bufferStatus);
 
-
   void 	handleFfmpegProcessStarted();
 
   void 	handleFfmpegProcessError(QProcess::ProcessError error);
@@ -120,7 +118,6 @@ private slots:
 
 private:
   Ui::MainWindow *ui;
-  QSerialPort *m_serialPort;
   Client *m_client;
   QTemporaryFile *m_tmpFile;
   QProcess *m_ffmpegProcess;

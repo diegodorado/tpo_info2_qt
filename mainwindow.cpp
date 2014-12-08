@@ -49,32 +49,28 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    //ui->groupBox_DeviceControl->setEnabled(false);
+    ui->groupBox_DeviceControl->setEnabled(false);
     ui->groupBox_AudioProgress->setEnabled(false);
 
-    m_serialPort = new QSerialPort(this);
     m_client = new Client(this);
     m_ffmpegProcess = new QProcess(this);
 
-    connect(m_serialPort, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
-    connect(m_client, SIGNAL(handshakeResponse(bool)), this, SLOT(handleHandshakeResponse(bool)));
-    connect(m_client,SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
 
+    connect(m_client, SIGNAL(deviceStatusChanged(bool)), this, SLOT(handleDeviceStatusChanged(bool)));
+    connect(m_client, SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
     connect(m_client, SIGNAL(sendFileHeaderResponse(bool)), this, SLOT(handleSendFileHeaderResponse(bool)));
     connect(m_client, SIGNAL(sendFileChunkResponse(bool,uint32_t, uint32_t)), this, SLOT(handleSendFileChunkResponse(bool,uint32_t, uint32_t)));
     connect(m_client, SIGNAL(sendFileTimeout()), this, SLOT(handleSendFileTimeout()));
-
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
-    connect(m_client,SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
-    connect(m_client,SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
+    connect(m_client, SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
+    connect(m_client, SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
 
-
-    connect(m_ffmpegProcess,SIGNAL(started()),SLOT(handleFfmpegProcessStarted()));
-    connect(m_ffmpegProcess,SIGNAL(error(QProcess::ProcessError )),SLOT(handleFfmpegProcessError(QProcess::ProcessError )));
-    connect(m_ffmpegProcess,SIGNAL(finished(int , QProcess::ExitStatus )),SLOT(handleFfmpegProcessFinished(int , QProcess::ExitStatus )));
-    connect(m_ffmpegProcess,SIGNAL(readyRead()),SLOT(handleFfmpegProcessReadyRead()));
-    connect(m_ffmpegProcess,SIGNAL(readyReadStandardError()),SLOT(handleFfmpegProcessReadyRead()));
-    connect(m_ffmpegProcess,SIGNAL(readyReadStandardOutput()),SLOT(handleFfmpegProcessReadyRead()));
+    connect(m_ffmpegProcess, SIGNAL(started()),SLOT(handleFfmpegProcessStarted()));
+    connect(m_ffmpegProcess, SIGNAL(error(QProcess::ProcessError )),SLOT(handleFfmpegProcessError(QProcess::ProcessError )));
+    connect(m_ffmpegProcess, SIGNAL(finished(int , QProcess::ExitStatus )),SLOT(handleFfmpegProcessFinished(int , QProcess::ExitStatus )));
+    connect(m_ffmpegProcess, SIGNAL(readyRead()),SLOT(handleFfmpegProcessReadyRead()));
+    connect(m_ffmpegProcess, SIGNAL(readyReadStandardError()),SLOT(handleFfmpegProcessReadyRead()));
+    connect(m_ffmpegProcess, SIGNAL(readyReadStandardOutput()),SLOT(handleFfmpegProcessReadyRead()));
 
 
 
@@ -88,7 +84,6 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
   delete ui;
-  delete m_serialPort;
   delete m_client;
 }
 
@@ -132,11 +127,8 @@ void MainWindow::on_toolButton_Upload_clicked()
   if (filename != "")
   {
 
-
-
     if (m_tmpFile->open()) {
-      // this is only to get a valid tmp filename, so i close it
-      //m_tmpFile->close();
+      // this is only to get a valid tmp filename
 
       // contruye el comando: ffmpeg -i source -ac 1 -sample_fmt u8 -acodec pcm_u8 -f u8 -y -ar 8000 /tmp.file
 
@@ -152,10 +144,9 @@ void MainWindow::on_toolButton_Upload_clicked()
       log(QString("Ejecutando: %1 %2").arg(program).arg(arguments.join(" ")));
       m_ffmpegProcess->setProcessChannelMode(QProcess::MergedChannels);
       m_ffmpegProcess->start(program, arguments);
-      log(QString("waitForStarted ..."));
 
-
-
+      ui->groupBox_DeviceControl->setEnabled(false);
+      ui->groupBox_AudioProgress->setEnabled(true);
 
     }
 
@@ -170,21 +161,12 @@ void MainWindow::on_pushButton_RefreshPortList_clicked()
 
 void MainWindow::on_pushButton_Connect_clicked()
 {
-  if (m_serialPort->isOpen())
+  if (m_client->getSerialPort()->isOpen())
     closeSerialPort();
   else
     openSerialPort();
 
   updateConnectButtonLabel();
-
-
-  if (m_serialPort->isOpen()){
-    m_client->setSerialPort(m_serialPort);
-    m_client->sendHandshakeRequest();
-    log(QString("Iniciando handshake..."));
-
-  }
-
 
 }
 
@@ -214,7 +196,7 @@ void MainWindow::loadSampleRateList()
 
 void MainWindow::updateConnectButtonLabel()
 {
-  if(m_serialPort->isOpen())
+  if(m_client->getSerialPort()->isOpen())
     ui->pushButton_Connect->setText("Desconectar");
   else
     ui->pushButton_Connect->setText("Conectar");
@@ -226,22 +208,21 @@ void MainWindow::openSerialPort()
   log(QString("Intentando abrir puerto serie."));
 
   if (ui->comboBox_PortList->currentData().isNull()){
-    QMessageBox::critical(this, "Error de Conecxion","seleccione un puerto válido");
     ui->statusBar->showMessage(tr("Seleccione un puerto valido"));
     log(QString("El puerto no es válido."));
     return;
   }
 
-  m_serialPort->setPortName(ui->comboBox_PortList->currentData().toString());
-  //m_serialPort->setBaudRate(QSerialPort::Baud38400);
-  m_serialPort->setBaudRate(QSerialPort::Baud57600);
-  //m_serialPort->setBaudRate(QSerialPort::Baud115200);
-  m_serialPort->setDataBits(QSerialPort::Data8);
-  m_serialPort->setParity(QSerialPort::NoParity);
-  m_serialPort->setStopBits(QSerialPort::OneStop);
-  m_serialPort->setFlowControl(QSerialPort::NoFlowControl);
+  m_client->getSerialPort()->setPortName(ui->comboBox_PortList->currentData().toString());
+  //m_client->getSerialPort()->setBaudRate(QSerialPort::Baud38400);
+  m_client->getSerialPort()->setBaudRate(QSerialPort::Baud57600);
+  //m_client->getSerialPort()->setBaudRate(QSerialPort::Baud115200);
+  m_client->getSerialPort()->setDataBits(QSerialPort::Data8);
+  m_client->getSerialPort()->setParity(QSerialPort::NoParity);
+  m_client->getSerialPort()->setStopBits(QSerialPort::OneStop);
+  m_client->getSerialPort()->setFlowControl(QSerialPort::NoFlowControl);
 
-  if(m_serialPort->open(QIODevice::ReadWrite))
+  if(m_client->getSerialPort()->open(QIODevice::ReadWrite))
   {
     ui->statusBar->showMessage("Conectado a " + ui->comboBox_PortList->currentData().toString());
     log(QString("Conectado a %1 .").arg(ui->comboBox_PortList->currentText()));
@@ -258,10 +239,10 @@ void MainWindow::openSerialPort()
 void MainWindow::closeSerialPort()
 {
   log(QString("Cerrando puerto serie."));
-  m_serialPort->close();
+  m_client->getSerialPort()->close();
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(false);
-  ui->statusBar->showMessage(tr("No Conectado"));
+  ui->statusBar->showMessage("No Conectado");
 }
 
 void MainWindow::log(QString msg, bool newLine )
@@ -272,22 +253,11 @@ void MainWindow::log(QString msg, bool newLine )
   ui->plainTextEdit_Log->centerCursor();
 }
 
-void MainWindow::handleError(QSerialPort::SerialPortError error)
+void MainWindow::handleDeviceStatusChanged(bool connected)
 {
-  if (error == QSerialPort::ResourceError) {
-    log(QString("Error Critico %1.").arg(m_serialPort->errorString()));
-    QMessageBox::critical(this, "Error Critico", m_serialPort->errorString());
-    closeSerialPort();
-  }
-}
-
-
-
-void MainWindow::handleHandshakeResponse(bool success)
-{
-  if(success)
+  if(connected)
   {
-    log(QString("Handshake aceptado."));
+    log(QString("Dispositivo conectado."));
     m_client->getDeviceStatus();
     log(QString("Solicitando estado del dispositivo..."));
   }

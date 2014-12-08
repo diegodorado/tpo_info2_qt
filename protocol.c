@@ -14,7 +14,7 @@ End of Multi Language Header
 */
 
 
-/*START OF C/C++ COMMON CODE - (do not code aboce this line)*/
+/*START OF C/C++ COMMON CODE - (do not code above this line)*/
 #include "protocol.h"
 
 
@@ -27,7 +27,7 @@ static buffer_status_t buffer_status = BUFFER_NOT_SOF; //initial buffer state
 //static functions prototypes
 static uint8_t validate_buffer_checksum();
 static int validate_end_of_frame();
-static int buffered_message_data_length();
+static uint16_t buffered_message_data_length();
 static int buffered_message_length();
 static uint8_t raw_rx_buffer_at(int i);
 static int raw_rx_buffer_pos(int i);
@@ -40,11 +40,11 @@ static void raw_rx_buffer_clear ();
 uint8_t messageGetChecksum(message_hdr_t* message, uint8_t* data)
 {
   uint8_t result = 0;
-  int i;
+  uint16_t i;
 
-  result ^= message->data_length;
-  result ^= message->msg_id;
-  result ^= message->msg_full_type;
+  for(i = 0; i < sizeof(message_hdr_t); i++)
+    result ^= *( ((uint8_t*) message) +i);
+
   for(i = 0; i < message->data_length; i++)
     result ^= *(data+i);
 
@@ -77,8 +77,8 @@ void messagesBufferPush ( uint8_t data )
 uint8_t* messagesBufferPop ( void)
 {
   uint8_t* raw_data = NULL;
-  int i;
-  int l = buffered_message_length();
+  uint16_t i;
+  uint16_t l = buffered_message_length();
 
   if (buffer_status==BUFFER_MSG_OK){
     raw_data = (uint8_t*) malloc (l*sizeof(uint8_t));
@@ -132,15 +132,22 @@ static uint8_t raw_rx_buffer_at(int i)
  * caution! only valid if buffer status
  * is BUFFER_IN_MSG or BUFFER_EOF
 */
-static int buffered_message_data_length()
+static uint16_t buffered_message_data_length()
 {
+
+  uint8_t i;
+  uint16_t length;
+
   if (buffer_status!=BUFFER_EOF
       && buffer_status!=BUFFER_IN_MSG
       && buffer_status!=BUFFER_MSG_OK)
     return 0;
 
-  //msg length is the first byte
-  return raw_rx_buffer_at(0);
+  for(i=0;i<sizeof(uint16_t);i++)
+    *( ((uint8_t*) &length )+i) = raw_rx_buffer_at(i);
+
+  //msg length is the first two bytes
+  return length;
 }
 
 
@@ -235,8 +242,8 @@ buffer_status_t messagesBufferProcess ( void)
   }
 
   if(buffer_status==BUFFER_SOF) {
-    if(raw_rx_buffer_count()>0)
-      // buffer count should at least be 1 to read message length
+    if(raw_rx_buffer_count()>=2)
+      // buffer count should at least be 2 to read message length
       buffer_status = BUFFER_IN_MSG;
   }
 
