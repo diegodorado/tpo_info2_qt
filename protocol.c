@@ -82,7 +82,12 @@ uint8_t* messagesBufferPop ( void)
 
   if (buffer_status==BUFFER_MSG_OK){
     raw_data = (uint8_t*) malloc (l*sizeof(uint8_t));
-    if (raw_data !=NULL){
+    if (raw_data ==NULL)
+    {
+      buffer_status = BUFFER_NOT_SOF;
+    }
+    else
+    {
       for(i=0;i<l;i++){
         *(raw_data+i) = raw_rx_buffer[raw_rx_buffer_out_index++];
         raw_rx_buffer_out_index %= RAW_RX_BUFFER_SIZE;
@@ -230,6 +235,7 @@ buffer_status_t messagesBufferProcess ( void)
     if (raw_rx_buffer_at(0) == START_OF_FRAME)
     {
       unframed_data_count = 0;
+      raw_rx_buffer[raw_rx_buffer_out_index] = 0; //read it only once
       raw_rx_buffer_out_index++; //discard SOF byte
       buffer_status = BUFFER_SOF;
     }

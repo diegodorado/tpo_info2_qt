@@ -205,6 +205,11 @@ void MainWindow::updateConnectButtonLabel()
 
 void MainWindow::openSerialPort()
 {
+  QString port = ui->comboBox_PortList->currentData().toString();
+  uint16_t baudRate = QSerialPort::Baud38400;
+  //uint16_t baudRate = QSerialPort::Baud57600;
+  //uint16_t baudRate = QSerialPort::Baud115200;
+
   log(QString("Intentando abrir puerto serie."));
 
   if (ui->comboBox_PortList->currentData().isNull()){
@@ -213,16 +218,8 @@ void MainWindow::openSerialPort()
     return;
   }
 
-  m_client->getSerialPort()->setPortName(ui->comboBox_PortList->currentData().toString());
-  //m_client->getSerialPort()->setBaudRate(QSerialPort::Baud38400);
-  m_client->getSerialPort()->setBaudRate(QSerialPort::Baud57600);
-  //m_client->getSerialPort()->setBaudRate(QSerialPort::Baud115200);
-  m_client->getSerialPort()->setDataBits(QSerialPort::Data8);
-  m_client->getSerialPort()->setParity(QSerialPort::NoParity);
-  m_client->getSerialPort()->setStopBits(QSerialPort::OneStop);
-  m_client->getSerialPort()->setFlowControl(QSerialPort::NoFlowControl);
 
-  if(m_client->getSerialPort()->open(QIODevice::ReadWrite))
+  if(m_client->openSerialPort(port, baudRate))
   {
     ui->statusBar->showMessage("Conectado a " + ui->comboBox_PortList->currentData().toString());
     log(QString("Conectado a %1 .").arg(ui->comboBox_PortList->currentText()));
@@ -239,7 +236,7 @@ void MainWindow::openSerialPort()
 void MainWindow::closeSerialPort()
 {
   log(QString("Cerrando puerto serie."));
-  m_client->getSerialPort()->close();
+  m_client->closeSerialPort();
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(false);
   ui->statusBar->showMessage("No Conectado");
@@ -264,6 +261,9 @@ void MainWindow::handleDeviceStatusChanged(bool connected)
   else
   {
     log(QString("Dispositivo no detectado."));
+    ui->listWidget_DeviceAudios->clear();
+    ui->groupBox_DeviceControl->setEnabled(false);
+    ui->statusBar->showMessage("No Conectado");
   }
 
 

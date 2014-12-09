@@ -31,6 +31,10 @@ public:
 
   QSerialPort *getSerialPort(void);
 
+  bool openSerialPort(QString port, uint16_t baudRate);
+
+  void closeSerialPort(void);
+
   void sendHandshakeRequest();
 
   void sendPlaybackCommandRequest(playback_command_type_t command);
@@ -41,6 +45,7 @@ public:
 
 private:
   const int KEEP_ALIVE_FREQUENCY = 2000;
+  const int MAX_CONCURRENT_MESSAGES = 8;
   QTimer* m_queueTimer;
   QTimer* m_fileSendTimer;
   QTimer* m_keepAliveTimer;
