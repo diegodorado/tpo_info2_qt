@@ -139,7 +139,7 @@ typedef enum {
 typedef enum {
   MESSAGE_HANDSHAKE,
   MESSAGE_INFO_STATUS,
-  MESSAGE_PLAYBACK_COMMAND,
+  MESSAGE_COMMAND,
   MESSAGE_FILEHEADER,
   MESSAGE_FILECHUNK,
   MESSAGE_MAX_VALID_TYPE,
@@ -160,13 +160,14 @@ typedef enum{
 
 
 typedef enum {
-  PLAYBACK_COMMAND_PLAY,
-  PLAYBACK_COMMAND_PREVIOUS,
-  PLAYBACK_COMMAND_NEXT,
-  PLAYBACK_COMMAND_PAUSE,
-  PLAYBACK_COMMAND_STOP,
-  PLAYBACK_COMMAND_MAX_VALID_TYPE,
-} playback_command_type_t;
+  COMMAND_PLAY,
+  COMMAND_PREVIOUS,
+  COMMAND_NEXT,
+  COMMAND_PAUSE,
+  COMMAND_STOP,
+  COMMAND_FORMAT_SD,
+  COMMAND_MAX_VALID_TYPE,
+} command_type_t;
 
 typedef struct
 {
@@ -181,20 +182,24 @@ typedef struct
   };
 } message_hdr_t;
 
-typedef struct
-{
-  uint32_t filesize;
-  uint32_t sample_rate;
-  uint32_t  chunks_count;
-  char     filename[8];
+
+
+typedef struct {
+ char filename[8];
+ uint32_t length;
+ uint32_t chunks_count;
+ uint32_t block_start; // indice de bloque de la SD donde comienza el audio del archivo
+ uint32_t sample_rate;
+ uint32_t RESERVED0[2]; // para alinear de a 32 bytes
 } fileheader_data_t;
 
 typedef struct
 {
+  uint8_t  sd_status; //0: no error
   uint8_t  files_count;
-  uint8_t  sd_connected;
-  uint8_t total_space;
-  uint8_t available_space;
+  uint32_t disk_space;
+  uint32_t available_space;
+  uint32_t last_block; // indice del ultimo bloque libre de la SD
 } status_hdr_t;
 
 typedef struct

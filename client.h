@@ -37,7 +37,7 @@ public:
 
   void sendHandshakeRequest();
 
-  void sendPlaybackCommandRequest(playback_command_type_t command);
+  void sendCommandRequest(command_type_t command);
 
   void getDeviceStatus();
 

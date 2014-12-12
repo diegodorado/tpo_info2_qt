@@ -45,6 +45,7 @@
 
 #include <QtCore/QtGlobal>
 #include <QMainWindow>
+#include <QSettings>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QtSerialPort/QSerialPort>
 #include <QMessageBox>
@@ -79,6 +80,8 @@ private slots:
 
   void on_toolButton_Previous_clicked();
 
+  void on_toolButton_Stop_clicked();
+
   void on_toolButton_Pause_clicked();
 
   void on_toolButton_Play_clicked();
@@ -90,6 +93,10 @@ private slots:
   void on_pushButton_RefreshPortList_clicked();
 
   void on_pushButton_Connect_clicked();
+
+  void on_pushButton_FormatSD_clicked();
+
+
 
   void handleDeviceStatusChanged(bool connected);
 
@@ -115,17 +122,19 @@ private slots:
 
   void 	handleFfmpegProcessReadyRead();
 
-
 private:
   Ui::MainWindow *ui;
   Client *m_client;
   QTemporaryFile *m_tmpFile;
   QProcess *m_ffmpegProcess;
   QString m_shortFilename;
+  QSettings* m_settings;
 
   void openSerialPort();
 
   void refreshSerialPortList();
+
+  void loadBaudRateList();
 
   void loadSampleRateList();
 

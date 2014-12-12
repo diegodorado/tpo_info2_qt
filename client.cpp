@@ -66,7 +66,7 @@ void Client::sendHandshakeRequest()
 
 }
 
-void Client::sendPlaybackCommandRequest(playback_command_type_t command)
+void Client::sendCommandRequest(command_type_t command)
 {
   message_hdr_t request;
 
@@ -75,7 +75,7 @@ void Client::sendPlaybackCommandRequest(playback_command_type_t command)
   {
     request.data_length = 1;
     request.is_response = 0;
-    request.msg_type = MESSAGE_PLAYBACK_COMMAND;
+    request.msg_type = MESSAGE_COMMAND;
     sendMessageRequest(&request, (uint8_t*) &command);
     m_sendCommandResponseTimer->start(KEEP_ALIVE_FREQUENCY);
   }
@@ -118,6 +118,7 @@ bool Client::openSerialPort(QString port, uint16_t baudRate)
     m_deviceConnected = false;
     m_keepAliveResponded = false;
     sendHandshakeRequest();
+    return true;
   }
   else
     return false;
@@ -134,11 +135,11 @@ void Client::sendFile(QFile *file, uint32_t sampleRate, QString filename)
   m_audioFile = file;
 
   m_fileHeader.sample_rate = sampleRate;
-  m_fileHeader.filesize =  m_audioFile->size();
+  m_fileHeader.length =  m_audioFile->size();
   strncpy(m_fileHeader.filename, filename.toLatin1().data() ,8);
 
-  m_fileHeader.chunks_count = m_fileHeader.filesize / FILECHUNK_SIZE;
-  if((m_fileHeader.filesize % FILECHUNK_SIZE) > 0)
+  m_fileHeader.chunks_count = m_fileHeader.length / FILECHUNK_SIZE;
+  if((m_fileHeader.length % FILECHUNK_SIZE) > 0)
     m_fileHeader.chunks_count++;
 
   m_chunkIndex = 0;
@@ -407,7 +408,7 @@ void Client::processMessageResponse(message_hdr_t* message)
     case MESSAGE_INFO_STATUS:
       processInfoStatusResponse(message);
       break;
-    case MESSAGE_PLAYBACK_COMMAND:
+    case MESSAGE_COMMAND:
       m_sendCommandResponseTimer->stop(); //prevent a timeout
       emit sendCommandResponse( * messageData(message) == STATUS_OK );
       break;
@@ -455,12 +456,6 @@ void Client::processInfoStatusResponse(message_hdr_t* response)
   for(uint8_t i = 0; i < sizeof(status_hdr_t) ; i++)
     *( (uint8_t*) &status + i)  = * ( messageData(response) + i );
 
-
-  if(status.sd_connected>1){
-    qDebug() << "Invalid sd_connected value.";
-    emit infoStatusResponse(false,NULL,NULL);
-    return;
-  }
 
   if(status.files_count>32){
     qDebug() << "Too many files detected.";
@@ -517,7 +512,7 @@ void Client::keepAlive()
   {
     m_deviceConnected = false;
     // emit device disconnection
-    emit deviceStatusChanged(false);
+    //emit deviceStatusChanged(false);
 
   }
 
@@ -592,7 +587,7 @@ void Client::processMessagesQueue()
       case MESSAGE_INFO_STATUS:
         sendFakeDeviceStatus(message);
         break;
-      case MESSAGE_PLAYBACK_COMMAND:
+      case MESSAGE_COMMAND:
         sendStatusResponse(message,STATUS_OK);
         break;
       case MESSAGE_FILEHEADER:
@@ -631,8 +626,8 @@ void Client::sendFakeDeviceStatus(message_hdr_t *request)
 {
   message_hdr_t response;
   status_hdr_t status;
-  status.sd_connected = 1;
-  status.total_space = 150;
+  status.sd_status = 0;
+  status.disk_space= 150;
   status.available_space = 75;
   status.files_count = 8;
 
@@ -647,7 +642,7 @@ void Client::sendFakeDeviceStatus(message_hdr_t *request)
   for(int i = 0; i<status.files_count;i++)
   {
     fileheader_data_t fd;
-    fd.filesize = 0;
+    fd.length = 0;
     fd.chunks_count = 0;
     strncpy(fd.filename,QString("AUDIO_0%1").arg(i).toLatin1().data(),8);
 
