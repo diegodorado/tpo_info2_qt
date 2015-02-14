@@ -206,8 +206,8 @@ void MainWindow::updateConnectButtonLabel()
 void MainWindow::openSerialPort()
 {
   QString port = ui->comboBox_PortList->currentData().toString();
-  uint16_t baudRate = QSerialPort::Baud38400;
-  //uint16_t baudRate = QSerialPort::Baud57600;
+  //uint16_t baudRate = QSerialPort::Baud38400;
+  uint16_t baudRate = QSerialPort::Baud57600;
   //uint16_t baudRate = QSerialPort::Baud115200;
 
   log(QString("Intentando abrir puerto serie."));
