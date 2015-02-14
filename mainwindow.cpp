@@ -255,7 +255,6 @@ void MainWindow::openSerialPort()
 {
   QString port = ui->comboBox_PortList->currentData().toString();
   uint16_t baudRate = ui->comboBox_BaudRate->currentData().toInt();
-
   //save settings for next time
   m_settings->setValue("baud-rate",baudRate );
 

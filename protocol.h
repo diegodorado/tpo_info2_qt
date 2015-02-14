@@ -39,7 +39,7 @@
   Handshaking:
   ------------
     * Handshaking is done with a handshake message.
-    * A successful connection with the Device is established after with a succesful handshake message response.
+    * A successful connection with the Device is established after a succesful handshake message response.
     * A message (other than a handshake) should not be sent before a successful connection is established.
 
   Checksum:
@@ -97,7 +97,6 @@
 
 // macros have to be outside extern "C" block
 // to be defined on other sources that includes this file
-#define MAX_PACKET_SIZE 128
 #define MAX_UNFRAMED_DATA 256
 #define START_OF_FRAME 0xFA
 #define END_OF_FRAME 0xCC
@@ -165,8 +164,6 @@ typedef enum {
   COMMAND_NEXT,
   COMMAND_PAUSE,
   COMMAND_STOP,
-  COMMAND_FORMAT_SD,
-  COMMAND_MAX_VALID_TYPE,
 } command_type_t;
 
 typedef struct
@@ -195,10 +192,8 @@ typedef struct {
 
 typedef struct
 {
-  uint8_t  sd_status; //0: no error
   uint8_t  files_count;
-  uint32_t disk_space;
-  uint32_t available_space;
+  uint32_t blocks_count;
   uint32_t last_block; // indice del ultimo bloque libre de la SD
 } status_hdr_t;
 

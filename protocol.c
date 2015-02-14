@@ -170,8 +170,6 @@ static int buffered_message_length()
 */
 static int validate_end_of_frame()
 {
-  //if (buffer_status!=BUFFER_EOF)
-   // return 0;
 
   return raw_rx_buffer_at(buffered_message_length()+1) == END_OF_FRAME;
 }
