@@ -55,15 +55,19 @@ MainWindow::MainWindow(QWidget *parent) :
     m_client = new Client(this);
     m_ffmpegProcess = new QProcess(this);
 
+    m_settings = new QSettings("Grupo 4", "TPO Info 2");
+
+    connect(m_client->getSerialPort(), SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleSerialError(QSerialPort::SerialPortError)));
+
 
     connect(m_client, SIGNAL(deviceStatusChanged(bool)), this, SLOT(handleDeviceStatusChanged(bool)));
     connect(m_client, SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
     connect(m_client, SIGNAL(sendFileHeaderResponse(bool)), this, SLOT(handleSendFileHeaderResponse(bool)));
     connect(m_client, SIGNAL(sendFileChunkResponse(bool,uint32_t, uint32_t)), this, SLOT(handleSendFileChunkResponse(bool,uint32_t, uint32_t)));
-    connect(m_client, SIGNAL(sendFileTimeout()), this, SLOT(handleSendFileTimeout()));
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
-    connect(m_client, SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
-    connect(m_client, SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
+    connect(m_client, SIGNAL(log(QString)),SLOT(handleClientLog(QString)));
+
+
 
     connect(m_ffmpegProcess, SIGNAL(started()),SLOT(handleFfmpegProcessStarted()));
     connect(m_ffmpegProcess, SIGNAL(error(QProcess::ProcessError )),SLOT(handleFfmpegProcessError(QProcess::ProcessError )));
@@ -78,6 +82,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     refreshSerialPortList();
     loadSampleRateList();
+    loadBaudRateList();
 
 }
 
@@ -88,29 +93,46 @@ MainWindow::~MainWindow()
 }
 
 
+void MainWindow::handleSerialError(QSerialPort::SerialPortError error)
+{
+  if(error ==QSerialPort::NoError)
+    return;
+
+  log(QString("Error Critico en puerto serie: %1").arg(m_client->getSerialPort()->errorString()));
+  closeSerialPort();
+}
+
 void MainWindow::on_toolButton_Previous_clicked()
 {
-  log(QString("Enviando Comando de Reproduccion 'Previous' ..."));
-  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_PREVIOUS);
+  log(QString("Enviando Comando 'Previous' ..."));
+  m_client->sendCommandRequest(COMMAND_PREVIOUS);
+}
+
+void MainWindow::on_toolButton_Stop_clicked()
+{
+  log(QString("Enviando Comando 'Stop' ..."));
+  m_client->sendCommandRequest(COMMAND_STOP);
+
 }
 
 void MainWindow::on_toolButton_Pause_clicked()
 {
-  log(QString("Enviando Comando de Reproduccion 'Pause' ..."));
-  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_PAUSE);
+  log(QString("Enviando Comando 'Pause' ..."));
+  m_client->sendCommandRequest(COMMAND_PAUSE);
 }
 
 void MainWindow::on_toolButton_Play_clicked()
 {
-  log(QString("Enviando Comando de Reproduccion 'Play' ..."));
-  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_PLAY);
+  log(QString("Enviando Comando 'Play' ..."));
+  m_client->sendCommandRequest(COMMAND_PLAY);
 }
 
 void MainWindow::on_toolButton_Next_clicked()
 {
-  log(QString("Enviando Comando de Reproduccion 'Next' ..."));
-  m_client->sendPlaybackCommandRequest(PLAYBACK_COMMAND_NEXT);
+  log(QString("Enviando Comando 'Next' ..."));
+  m_client->sendCommandRequest(COMMAND_NEXT);
 }
+
 
 void MainWindow::on_toolButton_Upload_clicked()
 {
@@ -129,6 +151,8 @@ void MainWindow::on_toolButton_Upload_clicked()
 
     if (m_tmpFile->open()) {
       // this is only to get a valid tmp filename
+
+      m_settings->setValue("sample-rate",ui->comboBox_SampleRate->currentData().toInt() );
 
       // contruye el comando: ffmpeg -i source -ac 1 -sample_fmt u8 -acodec pcm_u8 -f u8 -y -ar 8000 /tmp.file
 
@@ -155,7 +179,7 @@ void MainWindow::on_toolButton_Upload_clicked()
 
 void MainWindow::on_pushButton_RefreshPortList_clicked()
 {
-  log(QString("Actualizando lista de puertos serie."));
+  log(QString("Actualiza lista de puertos serie."));
   refreshSerialPortList();
 }
 
@@ -165,8 +189,6 @@ void MainWindow::on_pushButton_Connect_clicked()
     closeSerialPort();
   else
     openSerialPort();
-
-  updateConnectButtonLabel();
 
 }
 
@@ -181,6 +203,21 @@ void MainWindow::refreshSerialPortList()
   }
 }
 
+void MainWindow::loadBaudRateList()
+{
+  ui->comboBox_BaudRate->clear();
+
+  ui->comboBox_BaudRate->addItem("9600", QSerialPort::Baud9600);
+  ui->comboBox_BaudRate->addItem("19200",QSerialPort::Baud19200);
+  ui->comboBox_BaudRate->addItem("38400",QSerialPort::Baud38400);
+  ui->comboBox_BaudRate->addItem("57600",QSerialPort::Baud57600);
+  ui->comboBox_BaudRate->addItem("115200",QSerialPort::Baud115200);
+
+  if(m_settings->contains("baud-rate"))
+    ui->comboBox_BaudRate->setCurrentIndex(ui->comboBox_BaudRate->findData(m_settings->value("baud-rate").toInt()));
+
+}
+
 void MainWindow::loadSampleRateList()
 {
   ui->comboBox_SampleRate->clear();
@@ -188,6 +225,9 @@ void MainWindow::loadSampleRateList()
   ui->comboBox_SampleRate->addItem("11 Khz", 11025);
   ui->comboBox_SampleRate->addItem("22 Khz", 22050);
   ui->comboBox_SampleRate->addItem("44 Khz", 44100);
+
+  if(m_settings->contains("sample-rate"))
+    ui->comboBox_SampleRate->setCurrentIndex(ui->comboBox_SampleRate->findData(m_settings->value("sample-rate").toInt()));
 
 }
 
@@ -197,18 +237,28 @@ void MainWindow::loadSampleRateList()
 void MainWindow::updateConnectButtonLabel()
 {
   if(m_client->getSerialPort()->isOpen())
+  {
+    ui->comboBox_PortList->setEnabled(false);
+    ui->comboBox_BaudRate->setEnabled(false);
+    ui->pushButton_RefreshPortList->setEnabled(false);
     ui->pushButton_Connect->setText("Desconectar");
+  }
   else
+  {
+    ui->comboBox_PortList->setEnabled(true);
+    ui->comboBox_BaudRate->setEnabled(true);
+    ui->pushButton_RefreshPortList->setEnabled(true);
     ui->pushButton_Connect->setText("Conectar");
+  }
 }
 
 
 void MainWindow::openSerialPort()
 {
   QString port = ui->comboBox_PortList->currentData().toString();
-  //uint16_t baudRate = QSerialPort::Baud38400;
-  uint16_t baudRate = QSerialPort::Baud57600;
-  //uint16_t baudRate = QSerialPort::Baud115200;
+  uint16_t baudRate = ui->comboBox_BaudRate->currentData().toInt();
+  //save settings for next time
+  m_settings->setValue("baud-rate",baudRate );
 
   log(QString("Intentando abrir puerto serie."));
 
@@ -230,16 +280,21 @@ void MainWindow::openSerialPort()
     log(QString("Error al abrir puerto %1 .").arg(ui->comboBox_PortList->currentText()));
   }
 
+  updateConnectButtonLabel();
 
 }
 
 void MainWindow::closeSerialPort()
 {
+
   log(QString("Cerrando puerto serie."));
   m_client->closeSerialPort();
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(false);
   ui->statusBar->showMessage("No Conectado");
+
+  updateConnectButtonLabel();
+
 }
 
 void MainWindow::log(QString msg, bool newLine )
@@ -263,7 +318,9 @@ void MainWindow::handleDeviceStatusChanged(bool connected)
     log(QString("Dispositivo no detectado."));
     ui->listWidget_DeviceAudios->clear();
     ui->groupBox_DeviceControl->setEnabled(false);
-    ui->statusBar->showMessage("No Conectado");
+    ui->groupBox_AudioProgress->setEnabled(false);
+    ui->progressBar->setValue(0);
+
   }
 
 
@@ -277,9 +334,8 @@ void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QL
   if(success)
   {
     log(QString("Estado del dispositivo recibida."));
-    log(QString(" --> SD conectada: %1.").arg(status->sd_connected));
-    log(QString(" --> Espacio disponible: %1.").arg(status->available_space));
-    log(QString(" --> Espacio Total: %1.").arg(status->total_space));
+    log(QString(" --> blocks_count: %1.").arg(status->blocks_count));
+    log(QString(" --> last_block: %1.").arg(status->last_block));
     log(QString(" --> Cantidad de Audios: %1.").arg(status->files_count));
 
     foreach (const fileheader_data_t &file_header, *fileList) {
@@ -299,11 +355,11 @@ void MainWindow::handleSendCommandResponse(bool success)
 {
   if(success)
   {
-    log(QString("Comando de Reproduccion Aceptado."));
+    log(QString("Comando Aceptado."));
   }
   else
   {
-    log(QString("Comando de Reproduccion Rechazado."));
+    log(QString("Comando Rechazado."));
   }
 
 }
@@ -331,7 +387,7 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
 
     //fixme: not accurate at all!
 
-    float progress = float(chunk_id) / float(chunksCount);
+    float progress = float(chunk_id) / float(chunksCount-1);
     ui->progressBar->setValue((int) qRound(progress*100.0f));
 
     if(chunk_id==chunksCount-1)
@@ -355,25 +411,7 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
   }
 }
 
-void MainWindow::handleSendFileTimeout()
-{
-  ui->groupBox_DeviceControl->setEnabled(true);
-  ui->groupBox_AudioProgress->setEnabled(false);
-  log(QString("Tiempo de espera de transmision agotado."));
-}
 
-void MainWindow::handleBufferError(buffer_status_t bufferStatus)
-{
-  Q_UNUSED(bufferStatus);
-  //log(QString("      * serial buffer error code: %1 * ").arg(bufferStatus));
-}
-
-void MainWindow::handleStatusChanged(buffer_status_t bufferStatus)
-{
-  Q_UNUSED(bufferStatus);
-  //log(QString("      * serial buffer status changed: %1 * ").arg(bufferStatus));
-
-}
 
 void MainWindow::handleFfmpegProcessStarted()
 {
@@ -408,6 +446,13 @@ void MainWindow::handleFfmpegProcessReadyRead()
 {
   log(m_ffmpegProcess->readAll(), false);
 }
+
+void MainWindow::handleClientLog(QString message)
+{
+  log(message);
+}
+
+
 
 
 

@@ -8,7 +8,6 @@
 #include <QTimer>
 #include <QFile>
 #include <QFileInfo>
-#include <QDebug>
 #include <QtSerialPort/QSerialPort>
 #include "protocol.h"
 
@@ -21,14 +20,6 @@ public:
   explicit Client(QObject *parent = 0);
   ~Client();
 
-  enum message_error_t {
-    NULL_MESSAGE,
-    INVALID_MESSAGE_TYPE,
-    RESPONSE_NOT_EXPECTED,
-    MSG_ID_IN_USE
-  };
-
-
   QSerialPort *getSerialPort(void);
 
   bool openSerialPort(QString port, uint16_t baudRate);
@@ -37,38 +28,34 @@ public:
 
   void sendHandshakeRequest();
 
-  void sendPlaybackCommandRequest(playback_command_type_t command);
+  void sendCommandRequest(command_type_t command);
 
   void getDeviceStatus();
 
   void sendFile(QFile *file, uint32_t sampleRate, QString filename);
 
 private:
-  const int KEEP_ALIVE_FREQUENCY = 2000;
-  const int MAX_CONCURRENT_MESSAGES = 8;
-  QTimer* m_queueTimer;
+  const int MAX_CONCURRENT_MESSAGES = 16;
   QTimer* m_fileSendTimer;
   QTimer* m_keepAliveTimer;
-  QTimer* m_infoStatusResponseTimer;
-  QTimer* m_sendCommandResponseTimer;
-  QTimer* m_sendFileResponseTimer;
+  QTimer* m_deadLineTimer;
 
 
   QFile* m_audioFile;
   QSerialPort* m_serialPort;
   QBitArray m_pendingMessagesMask;
-  QList<message_hdr_t*>* m_messagesQueue;
   buffer_status_t m_bufferStatus;
 
-  status_hdr_t m_deviceStatus;
+  status_hdr_t* m_deviceStatus;
   QList<fileheader_data_t>* m_fileList;
 
-  bool m_deviceConnected;
-  bool m_keepAliveResponded;
+  int m_deviceConnected;
   bool m_fileHeaderSent;
   bool m_fileHeaderAcepted;
   fileheader_data_t m_fileHeader;
   uint32_t  m_chunkIndex;
+
+  bool pendingFull();
 
   bool canSendMessage();
 
@@ -78,9 +65,7 @@ private:
 
   void sendMessageResponse(message_hdr_t* message, uint8_t* data);
 
-  void handleMessageRequest(message_hdr_t* message);
-
-  void handleMessageResponse(message_hdr_t* message);
+  void processMessageRequest(message_hdr_t *message);
 
   void processMessageResponse(message_hdr_t *message);
 
@@ -94,38 +79,24 @@ private:
 
   void processSendFileChunkResponse(message_hdr_t *response);
 
-private slots:
-  void readSerialData();
-
-  void handleSerialError(QSerialPort::SerialPortError bufferError);
-
   void readMessageFromBuffer();
 
-  void handleMessageError(message_error_t messageError);
+  void updateDeviceStatus(bool connected);
 
-  void handleBufferError(buffer_status_t bufferError);
+  void finishOrCancelFileTransfer(void);
+
+
+private slots:
+  void readSerialData();
 
   void processFileSend();
 
   void keepAlive();
 
-  void infoStatusResponseTimeout();
-
-  void sendCommandResponseTimeout();
-
-  void sendFileResponseTimeout();
-
-  void processMessagesQueue();
+  void deadLine();
 
 
 signals:
-  void bufferError(buffer_status_t);
-
-  void bufferReadyRead();
-
-  void bufferStatusChanged(buffer_status_t);
-
-  void messageError(message_error_t);
 
   void deviceStatusChanged(bool connected);
 
@@ -137,7 +108,7 @@ signals:
 
   void sendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
-  void sendFileTimeout();
+  void log(QString message);
 
 
 

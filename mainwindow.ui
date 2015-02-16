@@ -27,39 +27,6 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout_4">
-    <item row="0" column="0">
-     <widget class="QGroupBox" name="groupBox_SerialConnection">
-      <property name="title">
-       <string>Puerto Serie</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_2">
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_Port">
-         <property name="text">
-          <string>Puerto:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="2">
-        <widget class="QPushButton" name="pushButton_Connect">
-         <property name="text">
-          <string>Conectar</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1" colspan="2">
-        <widget class="QComboBox" name="comboBox_PortList"/>
-       </item>
-       <item row="1" column="0" colspan="2">
-        <widget class="QPushButton" name="pushButton_RefreshPortList">
-         <property name="text">
-          <string>Actualizar Puertos</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
     <item row="1" column="0">
      <widget class="QGroupBox" name="groupBox_DeviceControl">
       <property name="title">
@@ -79,6 +46,23 @@
            <property name="icon">
             <iconset resource="icons.qrc">
              <normaloff>:/images/media-previous.png</normaloff>:/images/media-previous.png</iconset>
+           </property>
+           <property name="iconSize">
+            <size>
+             <width>32</width>
+             <height>32</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="toolButton_Stop">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="icons.qrc">
+             <normaloff>:/images/media-stop.png</normaloff>:/images/media-stop.png</iconset>
            </property>
            <property name="iconSize">
             <size>
@@ -207,6 +191,49 @@
         <widget class="QProgressBar" name="progressBar">
          <property name="value">
           <number>24</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QGroupBox" name="groupBox_SerialConnection">
+      <property name="title">
+       <string>Puerto Serie</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0" rowspan="2" colspan="2">
+        <widget class="QLabel" name="label_Port">
+         <property name="text">
+          <string>Puerto:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3" rowspan="2" colspan="2">
+        <widget class="QComboBox" name="comboBox_PortList"/>
+       </item>
+       <item row="2" column="3">
+        <widget class="QComboBox" name="comboBox_BaudRate"/>
+       </item>
+       <item row="5" column="3">
+        <widget class="QPushButton" name="pushButton_RefreshPortList">
+         <property name="text">
+          <string>Actualizar Puertos</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="4">
+        <widget class="QPushButton" name="pushButton_Connect">
+         <property name="text">
+          <string>Conectar</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_BaudRate">
+         <property name="text">
+          <string>BaudRate:</string>
          </property>
         </widget>
        </item>

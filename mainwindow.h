@@ -45,6 +45,7 @@
 
 #include <QtCore/QtGlobal>
 #include <QMainWindow>
+#include <QSettings>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QtSerialPort/QSerialPort>
 #include <QMessageBox>
@@ -79,6 +80,8 @@ private slots:
 
   void on_toolButton_Previous_clicked();
 
+  void on_toolButton_Stop_clicked();
+
   void on_toolButton_Pause_clicked();
 
   void on_toolButton_Play_clicked();
@@ -101,12 +104,6 @@ private slots:
 
   void handleSendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
-  void handleSendFileTimeout();
-
-  void handleBufferError(buffer_status_t bufferStatus);
-
-  void handleStatusChanged(buffer_status_t bufferStatus);
-
   void 	handleFfmpegProcessStarted();
 
   void 	handleFfmpegProcessError(QProcess::ProcessError error);
@@ -115,6 +112,9 @@ private slots:
 
   void 	handleFfmpegProcessReadyRead();
 
+  void 	handleClientLog(QString message);
+
+  void handleSerialError(QSerialPort::SerialPortError bufferError);
 
 private:
   Ui::MainWindow *ui;
@@ -122,10 +122,13 @@ private:
   QTemporaryFile *m_tmpFile;
   QProcess *m_ffmpegProcess;
   QString m_shortFilename;
+  QSettings* m_settings;
 
   void openSerialPort();
 
   void refreshSerialPortList();
+
+  void loadBaudRateList();
 
   void loadSampleRateList();
 
