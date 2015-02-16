@@ -19,7 +19,7 @@ Client::Client(QObject *parent) :
   m_deadLineTimer =  new QTimer(this);
   m_fileSendTimer->setInterval(150); //fake some delay
   m_keepAliveTimer->setInterval(1500);
-  m_deadLineTimer->setInterval(3000);
+  m_deadLineTimer->setInterval(5000);
   connect(m_fileSendTimer, SIGNAL(timeout()), this, SLOT(processFileSend()));
   connect(m_keepAliveTimer, SIGNAL(timeout()), this, SLOT(keepAlive()));
   connect(m_deadLineTimer, SIGNAL(timeout()), this, SLOT(deadLine()));
@@ -424,7 +424,7 @@ void Client::deadLine()
 
 void Client::updateDeviceStatus(bool connected)
 {
-  emit log(QString("updateDeviceStatus: %1 %2 %3").arg(m_deviceConnected).arg(connected).arg(m_deviceConnected == (int) connected));
+  //emit log(QString("updateDeviceStatus: %1 %2 %3").arg(m_deviceConnected).arg(connected).arg(m_deviceConnected == (int) connected));
 
   if(connected)
     m_deadLineTimer->start(); // device responded, so restart timer. This must be called every time.
