@@ -50,7 +50,6 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->groupBox_DeviceControl->setEnabled(false);
-    ui->pushButton_FormatSD->setEnabled(false);
     ui->groupBox_AudioProgress->setEnabled(false);
 
     m_client = new Client(this);
@@ -58,14 +57,17 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_settings = new QSettings("Grupo 4", "TPO Info 2");
 
+    connect(m_client->getSerialPort(), SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleSerialError(QSerialPort::SerialPortError)));
+
+
     connect(m_client, SIGNAL(deviceStatusChanged(bool)), this, SLOT(handleDeviceStatusChanged(bool)));
     connect(m_client, SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
     connect(m_client, SIGNAL(sendFileHeaderResponse(bool)), this, SLOT(handleSendFileHeaderResponse(bool)));
     connect(m_client, SIGNAL(sendFileChunkResponse(bool,uint32_t, uint32_t)), this, SLOT(handleSendFileChunkResponse(bool,uint32_t, uint32_t)));
-    connect(m_client, SIGNAL(sendFileTimeout()), this, SLOT(handleSendFileTimeout()));
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
-    connect(m_client, SIGNAL(bufferStatusChanged(buffer_status_t)),SLOT(handleStatusChanged(buffer_status_t)));
-    connect(m_client, SIGNAL(bufferError(buffer_status_t)),SLOT(handleBufferError(buffer_status_t)));
+    connect(m_client, SIGNAL(log(QString)),SLOT(handleClientLog(QString)));
+
+
 
     connect(m_ffmpegProcess, SIGNAL(started()),SLOT(handleFfmpegProcessStarted()));
     connect(m_ffmpegProcess, SIGNAL(error(QProcess::ProcessError )),SLOT(handleFfmpegProcessError(QProcess::ProcessError )));
@@ -90,6 +92,15 @@ MainWindow::~MainWindow()
   delete m_client;
 }
 
+
+void MainWindow::handleSerialError(QSerialPort::SerialPortError error)
+{
+  if(error ==QSerialPort::NoError)
+    return;
+
+  log(QString("Error Critico en puerto serie: %1").arg(m_client->getSerialPort()->errorString()));
+  closeSerialPort();
+}
 
 void MainWindow::on_toolButton_Previous_clicked()
 {
@@ -120,12 +131,6 @@ void MainWindow::on_toolButton_Next_clicked()
 {
   log(QString("Enviando Comando 'Next' ..."));
   m_client->sendCommandRequest(COMMAND_NEXT);
-}
-
-void MainWindow::on_pushButton_FormatSD_clicked()
-{
-  log(QString("Enviando Comando 'FORMAT_SD' ..."));
-  m_client->sendCommandRequest(COMMAND_FORMAT_SD);
 }
 
 
@@ -165,7 +170,6 @@ void MainWindow::on_toolButton_Upload_clicked()
       m_ffmpegProcess->start(program, arguments);
 
       ui->groupBox_DeviceControl->setEnabled(false);
-      ui->pushButton_FormatSD->setEnabled(false);
       ui->groupBox_AudioProgress->setEnabled(true);
 
     }
@@ -175,7 +179,7 @@ void MainWindow::on_toolButton_Upload_clicked()
 
 void MainWindow::on_pushButton_RefreshPortList_clicked()
 {
-  log(QString("Actualizando lista de puertos serie."));
+  log(QString("Actualiza lista de puertos serie."));
   refreshSerialPortList();
 }
 
@@ -185,8 +189,6 @@ void MainWindow::on_pushButton_Connect_clicked()
     closeSerialPort();
   else
     openSerialPort();
-
-  updateConnectButtonLabel();
 
 }
 
@@ -278,17 +280,21 @@ void MainWindow::openSerialPort()
     log(QString("Error al abrir puerto %1 .").arg(ui->comboBox_PortList->currentText()));
   }
 
+  updateConnectButtonLabel();
 
 }
 
 void MainWindow::closeSerialPort()
 {
+
   log(QString("Cerrando puerto serie."));
   m_client->closeSerialPort();
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(false);
-  ui->pushButton_FormatSD->setEnabled(false);
   ui->statusBar->showMessage("No Conectado");
+
+  updateConnectButtonLabel();
+
 }
 
 void MainWindow::log(QString msg, bool newLine )
@@ -312,8 +318,9 @@ void MainWindow::handleDeviceStatusChanged(bool connected)
     log(QString("Dispositivo no detectado."));
     ui->listWidget_DeviceAudios->clear();
     ui->groupBox_DeviceControl->setEnabled(false);
-    ui->pushButton_FormatSD->setEnabled(false);
-    ui->statusBar->showMessage("No Conectado");
+    ui->groupBox_AudioProgress->setEnabled(false);
+    ui->progressBar->setValue(0);
+
   }
 
 
@@ -323,14 +330,12 @@ void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QL
 {
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(success);
-  ui->pushButton_FormatSD->setEnabled(success);
 
   if(success)
   {
     log(QString("Estado del dispositivo recibida."));
-    log(QString(" --> SD status: %1.").arg(status->sd_status));
-    log(QString(" --> Espacio Total: %1.").arg(status->disk_space));
-    log(QString(" --> Espacio disponible: %1.").arg(status->available_space));
+    log(QString(" --> blocks_count: %1.").arg(status->blocks_count));
+    log(QString(" --> last_block: %1.").arg(status->last_block));
     log(QString(" --> Cantidad de Audios: %1.").arg(status->files_count));
 
     foreach (const fileheader_data_t &file_header, *fileList) {
@@ -369,7 +374,6 @@ void MainWindow::handleSendFileHeaderResponse(bool success)
   {
     log(QString("Envio de Audio Rechazado."));
     ui->groupBox_DeviceControl->setEnabled(true);
-    ui->pushButton_FormatSD->setEnabled(true);
     ui->groupBox_AudioProgress->setEnabled(false);
 
   }
@@ -383,7 +387,7 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
 
     //fixme: not accurate at all!
 
-    float progress = float(chunk_id) / float(chunksCount);
+    float progress = float(chunk_id) / float(chunksCount-1);
     ui->progressBar->setValue((int) qRound(progress*100.0f));
 
     if(chunk_id==chunksCount-1)
@@ -394,7 +398,6 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
       log(QString("Solicitando estado del dispositivo..."));
 
       ui->groupBox_DeviceControl->setEnabled(true);
-      ui->pushButton_FormatSD->setEnabled(true);
       ui->groupBox_AudioProgress->setEnabled(false);
     }
 
@@ -403,32 +406,12 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
   {
     log(QString("Fallo la recepción de chunk %1 .").arg(chunk_id));
     ui->groupBox_DeviceControl->setEnabled(true);
-    ui->pushButton_FormatSD->setEnabled(true);
     ui->groupBox_AudioProgress->setEnabled(false);
 
   }
 }
 
-void MainWindow::handleSendFileTimeout()
-{
-  ui->groupBox_DeviceControl->setEnabled(true);
-  ui->pushButton_FormatSD->setEnabled(true);
-  ui->groupBox_AudioProgress->setEnabled(false);
-  log(QString("Tiempo de espera de transmision agotado."));
-}
 
-void MainWindow::handleBufferError(buffer_status_t bufferStatus)
-{
-  Q_UNUSED(bufferStatus);
-  //log(QString("      * serial buffer error code: %1 * ").arg(bufferStatus));
-}
-
-void MainWindow::handleStatusChanged(buffer_status_t bufferStatus)
-{
-  Q_UNUSED(bufferStatus);
-  //log(QString("      * serial buffer status changed: %1 * ").arg(bufferStatus));
-
-}
 
 void MainWindow::handleFfmpegProcessStarted()
 {
@@ -462,6 +445,11 @@ void MainWindow::handleFfmpegProcessFinished(int exitCode, QProcess::ExitStatus 
 void MainWindow::handleFfmpegProcessReadyRead()
 {
   log(m_ffmpegProcess->readAll(), false);
+}
+
+void MainWindow::handleClientLog(QString message)
+{
+  log(message);
 }
 
 

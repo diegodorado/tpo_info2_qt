@@ -32,9 +32,6 @@ static int buffered_message_length();
 static uint8_t raw_rx_buffer_at(int i);
 static int raw_rx_buffer_pos(int i);
 static int raw_rx_buffer_count();
-static void raw_rx_buffer_clear ();
-
-
 
 
 uint8_t messageGetChecksum(message_hdr_t* message, uint8_t* data)
@@ -103,9 +100,10 @@ uint8_t* messagesBufferPop ( void)
 }
 
 
-static void raw_rx_buffer_clear ()
+void messagesBufferClear ()
 {
   raw_rx_buffer_out_index = raw_rx_buffer_in_index;
+  buffer_status = BUFFER_NOT_SOF;
 }
 
 static int raw_rx_buffer_count()
@@ -218,8 +216,7 @@ buffer_status_t messagesBufferProcess ( void)
      || buffer_status==BUFFER_ERROR_CHECKSUM )
   {
     //an error ocurred before... then, clear the buffer and reset status
-    raw_rx_buffer_clear();
-    buffer_status = BUFFER_NOT_SOF;
+    messagesBufferClear();
   }
 
 

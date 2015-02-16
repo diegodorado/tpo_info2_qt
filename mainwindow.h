@@ -94,10 +94,6 @@ private slots:
 
   void on_pushButton_Connect_clicked();
 
-  void on_pushButton_FormatSD_clicked();
-
-
-
   void handleDeviceStatusChanged(bool connected);
 
   void handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t>*fileList);
@@ -108,12 +104,6 @@ private slots:
 
   void handleSendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
-  void handleSendFileTimeout();
-
-  void handleBufferError(buffer_status_t bufferStatus);
-
-  void handleStatusChanged(buffer_status_t bufferStatus);
-
   void 	handleFfmpegProcessStarted();
 
   void 	handleFfmpegProcessError(QProcess::ProcessError error);
@@ -121,6 +111,10 @@ private slots:
   void 	handleFfmpegProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
   void 	handleFfmpegProcessReadyRead();
+
+  void 	handleClientLog(QString message);
+
+  void handleSerialError(QSerialPort::SerialPortError bufferError);
 
 private:
   Ui::MainWindow *ui;

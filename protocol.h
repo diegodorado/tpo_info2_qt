@@ -211,7 +211,7 @@ buffer_status_t messagesBufferProcess ( void);
 void messagesBufferPush ( uint8_t data );
 uint8_t* messagesBufferPop( void);
 uint8_t* messageData(message_hdr_t* message);
-
+void messagesBufferClear();
 
 
 /*END OF C/C++ COMMON CODE - (do not code below this line)*/
