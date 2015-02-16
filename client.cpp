@@ -427,10 +427,11 @@ void Client::updateDeviceStatus(bool connected)
   emit log(QString("updateDeviceStatus: %1 %2 %3").arg(m_deviceConnected).arg(connected).arg(m_deviceConnected == (int) connected));
 
   if(connected)
-    m_deadLineTimer->start(); // device responded, so restart timer
+    m_deadLineTimer->start(); // device responded, so restart timer. This must be called every time.
 
 
   // m_deviceConnected isnt bool because I need tristate: true, false, not_checked_yet
+  // this is to trigger the signal only once, and for the first time also
   if(m_deviceConnected == (int) connected)
     return;
 
