@@ -434,6 +434,12 @@ void Client::updateDeviceStatus(bool connected)
   if(m_deviceConnected == (int) connected)
     return;
 
+  m_deviceConnected = (int) connected;
+
+  emit log(QString("Clear Serial Port: %1 ").arg(m_serialPort->clear()));
+
+
+
   if(!connected){
     m_deadLineTimer->stop();
     m_pendingMessagesMask.fill(false);
@@ -441,7 +447,6 @@ void Client::updateDeviceStatus(bool connected)
     messagesBufferClear();
   }
 
-  m_deviceConnected = (int) connected;
   emit deviceStatusChanged(connected);
 
 }
