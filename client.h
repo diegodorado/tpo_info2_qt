@@ -47,7 +47,7 @@ private:
   buffer_status_t m_bufferStatus;
 
   status_hdr_t* m_deviceStatus;
-  QList<fileheader_data_t>* m_fileList;
+  QList<QString>* m_fileList;
 
   int m_deviceConnected;
   bool m_fileHeaderSent;
@@ -100,7 +100,7 @@ signals:
 
   void deviceStatusChanged(bool connected);
 
-  void infoStatusResponse(bool success, status_hdr_t* deviceStatus,  QList<fileheader_data_t>* fileList);
+  void infoStatusResponse(bool success, status_hdr_t* deviceStatus,  QList<QString>* fileList);
 
   void sendCommandResponse(bool success);
 

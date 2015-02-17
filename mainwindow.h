@@ -96,7 +96,7 @@ private slots:
 
   void handleDeviceStatusChanged(bool connected);
 
-  void handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t>*fileList);
+  void handleInfoStatusResponse(bool success, status_hdr_t* status, QList<QString>*fileList);
 
   void handleSendCommandResponse(bool success);
 

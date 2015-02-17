@@ -8,7 +8,7 @@ Client::Client(QObject *parent) :
   m_pendingMessagesMask.fill(false);
   m_serialPort = new QSerialPort(this);
   m_deviceStatus = new status_hdr_t;
-  m_fileList = new QList<fileheader_data_t>();
+  m_fileList = new QList<QString>();
 
   // a single signal!!!
   connect(m_serialPort, SIGNAL(readyRead()), this, SLOT(readSerialData()));
@@ -244,7 +244,7 @@ void Client::readMessageFromBuffer()
     return;
   }
 
-  emit log(QString("Message: %1   type: %2 id:%3.").arg(message->is_response).arg(message->msg_type).arg(message->msg_id));
+  //emit log(QString("Message: %1   type: %2 id:%3.").arg(message->is_response).arg(message->msg_type).arg(message->msg_id));
 
 
   if(message->is_response)
@@ -376,7 +376,7 @@ void Client::processInfoStatusResponse(message_hdr_t* response)
   }
 
 
-  if(response->data_length != sizeof(status_hdr_t) + m_deviceStatus->files_count * sizeof(fileheader_data_t) ){
+  if(response->data_length != sizeof(status_hdr_t) + m_deviceStatus->files_count * 8 ){
     emit log("Data length mismatch.");
     emit infoStatusResponse(false,NULL,NULL);
     return;
@@ -384,11 +384,12 @@ void Client::processInfoStatusResponse(message_hdr_t* response)
 
   for(int i = 0; i<m_deviceStatus->files_count;i++)
   {
-    fileheader_data_t fd;
-     for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)
-      *( (uint8_t*) &fd  + j)  = * ( messageData(response) + sizeof(status_hdr_t) + sizeof(fileheader_data_t) * i + j );
+    QString filename;
+    char* filnamePtr;
 
-    m_fileList->append(fd);
+    filnamePtr = (char*) ( messageData(response) + sizeof(status_hdr_t) + 8 * i );
+    filename = QString::fromLatin1(filnamePtr ,8);
+    m_fileList->append(filename);
 
   }
 
@@ -540,14 +541,9 @@ void Client::sendFakeDeviceStatus(message_hdr_t *request)
 
   for(int i = 0; i<status.files_count;i++)
   {
-    fileheader_data_t fd;
-    fd.length = 0;
-    fd.chunks_count = 0;
-    strncpy(fd.filename,QString("AUDIO_0%1").arg(i).toLatin1().data(),8);
-
-    for(uint8_t j = 0; j < sizeof(fileheader_data_t) ; j++)
-      ba.append( *( ( (uint8_t*) &fd ) + j) );
-
+    char filename[8];
+    strncpy(filename,QString("AUDIO_0%1").arg(i).toLatin1().data(),8);
+    ba.append(filename,8);
   }
 
 

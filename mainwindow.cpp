@@ -61,7 +61,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     connect(m_client, SIGNAL(deviceStatusChanged(bool)), this, SLOT(handleDeviceStatusChanged(bool)));
-    connect(m_client, SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<fileheader_data_t>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<fileheader_data_t>*)));
+    connect(m_client, SIGNAL(infoStatusResponse(bool, status_hdr_t*,QList<QString>*)),SLOT(handleInfoStatusResponse(bool , status_hdr_t*,QList<QString>*)));
     connect(m_client, SIGNAL(sendFileHeaderResponse(bool)), this, SLOT(handleSendFileHeaderResponse(bool)));
     connect(m_client, SIGNAL(sendFileChunkResponse(bool,uint32_t, uint32_t)), this, SLOT(handleSendFileChunkResponse(bool,uint32_t, uint32_t)));
     connect(m_client, SIGNAL(sendCommandResponse(bool)), this, SLOT(handleSendCommandResponse(bool)));
@@ -326,7 +326,7 @@ void MainWindow::handleDeviceStatusChanged(bool connected)
 
 }
 
-void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QList<fileheader_data_t> * fileList)
+void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QList<QString> *fileList)
 {
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(success);
@@ -338,8 +338,7 @@ void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QL
     log(QString(" --> last_block: %1.").arg(status->last_block));
     log(QString(" --> Cantidad de Audios: %1.").arg(status->files_count));
 
-    foreach (const fileheader_data_t &file_header, *fileList) {
-      QString filename = QString::fromLatin1(file_header.filename,8);
+    foreach (const QString &filename, *fileList) {
       ui->listWidget_DeviceAudios->addItem(filename);
     }
 
