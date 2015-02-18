@@ -394,9 +394,7 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
     {
       //todo: send a confirmation request...
       log(QString("Ultimo chunk de archivo recibido."));
-      m_client->getDeviceStatus();
-      log(QString("Solicitando estado del dispositivo..."));
-
+      QTimer::singleShot(3000,this, SLOT(fileTransferCompleted));
       ui->groupBox_DeviceControl->setEnabled(true);
       ui->groupBox_AudioProgress->setEnabled(false);
     }
@@ -409,6 +407,13 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
     ui->groupBox_AudioProgress->setEnabled(false);
 
   }
+}
+
+void MainWindow::fileTransferCompleted()
+{
+  m_client->getDeviceStatus();
+  log(QString("Solicitando estado del dispositivo..."));
+
 }
 
 

@@ -104,6 +104,8 @@ private slots:
 
   void handleSendFileChunkResponse(bool success, uint32_t chunk_id, uint32_t chunksCount);
 
+  void fileTransferCompleted();
+
   void 	handleFfmpegProcessStarted();
 
   void 	handleFfmpegProcessError(QProcess::ProcessError error);
