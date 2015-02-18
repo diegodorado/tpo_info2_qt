@@ -104,32 +104,32 @@ void MainWindow::handleSerialError(QSerialPort::SerialPortError error)
 
 void MainWindow::on_toolButton_Previous_clicked()
 {
-  log(QString("Enviando Comando 'Previous' ..."));
+  //log(QString("Enviando Comando 'Previous' ..."));
   m_client->sendCommandRequest(COMMAND_PREVIOUS);
 }
 
 void MainWindow::on_toolButton_Stop_clicked()
 {
-  log(QString("Enviando Comando 'Stop' ..."));
+  //log(QString("Enviando Comando 'Stop' ..."));
   m_client->sendCommandRequest(COMMAND_STOP);
 
 }
 
 void MainWindow::on_toolButton_Pause_clicked()
 {
-  log(QString("Enviando Comando 'Pause' ..."));
+  //log(QString("Enviando Comando 'Pause' ..."));
   m_client->sendCommandRequest(COMMAND_PAUSE);
 }
 
 void MainWindow::on_toolButton_Play_clicked()
 {
-  log(QString("Enviando Comando 'Play' ..."));
+  //log(QString("Enviando Comando 'Play' ..."));
   m_client->sendCommandRequest(COMMAND_PLAY);
 }
 
 void MainWindow::on_toolButton_Next_clicked()
 {
-  log(QString("Enviando Comando 'Next' ..."));
+  //log(QString("Enviando Comando 'Next' ..."));
   m_client->sendCommandRequest(COMMAND_NEXT);
 }
 
@@ -330,13 +330,14 @@ void MainWindow::handleInfoStatusResponse(bool success, status_hdr_t* status, QL
 {
   ui->listWidget_DeviceAudios->clear();
   ui->groupBox_DeviceControl->setEnabled(success);
+  ui->progressBar->setValue(0);
 
   if(success)
   {
     log(QString("Estado del dispositivo recibida."));
-    log(QString(" --> blocks_count: %1.").arg(status->blocks_count));
-    log(QString(" --> last_block: %1.").arg(status->last_block));
-    log(QString(" --> Cantidad de Audios: %1.").arg(status->files_count));
+    log(QString(" --> Bloques:       %1.").arg(status->blocks_count));
+    log(QString(" --> Ultimo Bloque: %1.").arg(status->last_block));
+    log(QString(" --> Audios:        %1.").arg(status->files_count));
 
     foreach (const QString &filename, *fileList) {
       ui->listWidget_DeviceAudios->addItem(filename);
@@ -354,11 +355,11 @@ void MainWindow::handleSendCommandResponse(bool success)
 {
   if(success)
   {
-    log(QString("Comando Aceptado."));
+    //log(QString("Comando Aceptado."));
   }
   else
   {
-    log(QString("Comando Rechazado."));
+    //log(QString("Comando Rechazado."));
   }
 
 }
@@ -382,7 +383,7 @@ void MainWindow::handleSendFileChunkResponse(bool success, uint32_t chunk_id, ui
 {
   if(success)
   {
-    log(QString("Chunk %1 / %2 recibido con éxito.").arg(chunk_id).arg(chunksCount));
+    //log(QString("Chunk %1 / %2 recibido con éxito.").arg(chunk_id).arg(chunksCount));
 
     //fixme: not accurate at all!
 

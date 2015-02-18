@@ -305,7 +305,7 @@ void Client::processFileSend()
     request.data_length = ba.size();
     request.msg_type = MESSAGE_FILECHUNK;
     request.is_response = 0;
-    emit log(QString("Send chunk: %1 .").arg(m_chunkIndex));
+    //emit log(QString("Send chunk: %1 .").arg(m_chunkIndex));
     sendMessageRequest(&request, (uint8_t*) ba.data());
 
 
